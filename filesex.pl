@@ -44,6 +44,8 @@ more  obscure  and  possible  non-portable    low-level  operations  and
 high-level utilities.
 */
 
+:- use_module(library(shlib)).
+
 :- use_foreign_library(foreign(files), install_files).
 
 %%	set_time_file(+File, -OldTimes, +NewTimes) is det.

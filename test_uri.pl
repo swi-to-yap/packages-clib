@@ -9,6 +9,7 @@
 :- use_module(library(uri)).
 :- use_module(library(debug)).
 :- use_module(library(plunit)).
+:- use_module(library(lists)).
 
 test_uri :-
 	run_tests([ uri,

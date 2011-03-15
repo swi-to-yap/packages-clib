@@ -10,6 +10,7 @@
 :- use_module(library(plunit)).
 :- use_module(library(crypt)).
 :- use_module(library(sha)).
+:- use_module(library(lists)).
 
 :- begin_tests(crypt).
 

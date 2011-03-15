@@ -34,6 +34,7 @@
 :- asserta(user:file_search_path(library, '../plunit')).
 
 :- use_module(library(plunit)).
+:- use_module(library(lists)).
 :- use_module(cgi).
 :- use_module(uri).
 
