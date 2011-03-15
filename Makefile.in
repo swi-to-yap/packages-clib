@@ -14,13 +14,13 @@ DOC=clib
 PKGCFLAGS=-I$(srcdir) -I$(srcdir)/maildrop/rfc2045 -I$(srcdir)/maildrop/rfc822
 include ../Makefile.defs
 
-NETLIBS=@NETLIBS@
-CRYPTLIBS=@CRYPTLIBS@
+NETLIBS=@CLIB_NETLIBS@
+CRYPTLIBS=@CLIB_CRYPTLIBS@
 MIMELIBS=maildrop/rfc2045/librfc2045.a maildrop/rfc822/librfc822.a
 
-LIBPL=		@PLTARGETS@ streaminfo.pl process.pl prolog_server.pl sha.pl \
+LIBPL=		@CLIB_PLTARGETS@ streaminfo.pl process.pl prolog_server.pl sha.pl \
 		uri.pl
-TARGETS=	@TARGETS@ readutil.@SO@ streaminfo.@SO@ process.@SO@ \
+TARGETS=	@CLIB_TARGETS@ readutil.@SO@ streaminfo.@SO@ process.@SO@ \
 		sha4pl.@SO@ uri.@SO@
 
 UNXOBJ=		error.o unix.o
@@ -73,12 +73,16 @@ sha4pl.@SO@:	$(SHAOBJ)
 uri.@SO@:	$(URIOBJ)
 		$(LD) $(LDSOFLAGS) -o $@ $(URIOBJ)
 
-socket.o:	socket.c sockcommon.c
+socket.o:	$(srcdir)/socket.c $(srcdir)/sockcommon.c
 
+sha1/sha1.o:
+		$(CC) -c $(CFLAGS) -DUSE_SHA1 -o $@ $(srcdir)/sha1/sha1.c
+sha1/sha2.o:
+		$(CC) -c $(CFLAGS) -DUSE_SHA1 -o $@ $(srcdir)/sha1/sha2.c
 sha1/hmac_sha1.o:
-		$(CC) -c $(CFLAGS) -DUSE_SHA1 -o $@ sha1/hmac.c
+		$(CC) -c $(CFLAGS) -DUSE_SHA1 -o $@ $(srcdir)/sha1/hmac.c
 sha1/hmac_sha256.o:
-		$(CC) -c $(CFLAGS) -DUSE_SHA256 -o $@ sha1/hmac.c
+		$(CC) -c $(CFLAGS) -DUSE_SHA256 -o $@ $(srcdir)/sha1/hmac.c
 
 maildrop/rfc822/librfc822.a:
 		(cd maildrop/rfc822 && $(MAKE))
@@ -87,15 +91,15 @@ maildrop/rfc2045/librfc2045.a:
 
 
 install:	$(TARGETS)
-		mkdir -p $(DESTDIR)$(PLBASE)/lib/$(PLARCH)
+		mkdir -p $(DESTDIR)$(SOLIBDIR)
 		for f in $(TARGETS); do \
-		  $(INSTALL_PROGRAM) $$f $(DESTDIR)$(PLBASE)/lib/$(PLARCH); \
+		  $(INSTALL_PROGRAM) $$f $(DESTDIR)$(SOLIBDIR); \
 		done
-		mkdir -p $(DESTDIR)$(PLBASE)/library
+		mkdir -p $(DESTDIR)$(PLLIBDIR)
 		for f in $(LIBPL); do \
-		  $(INSTALL_DATA) $(srcdir)/$$f $(DESTDIR)$(PLBASE)/library; \
+		  $(INSTALL_DATA) $(srcdir)/$$f $(DESTDIR)$(PLLIBDIR); \
 		done
-		$(PL) -f none -g make -t halt
+		( cd $(srcdir) ; $(PL) -f none -g make -t halt )
 
 ln-install::
 		@$(MAKE) INSTALL_DATA='../ln-install' INSTALL_PROGRAM='../ln-install' install
@@ -125,28 +129,28 @@ check:		check-socket check-memfile check-unit check-process \
 torture:	torture-socket
 
 check-socket::
-		$(PL) -q -f test_socket.pl -F none -g test_socket,halt -t 'halt(1)'
+		( cd $(srcdir) && $(PL) -q -f test_socket.pl -F none -g test_socket,halt -t 'halt(1)' )
 
 torture-socket::
-		$(PL) -q -f stresssocket.pl -F none -g test,halt -t 'halt(1)'
+		( cd $(srcdir) && $(PL) -q -f stresssocket.pl -F none -g test,halt -t 'halt(1)' )
 
 check-memfile::
-		$(PL) -q -f test_memfile.pl -F none -g test_memfile,halt -t 'halt(1)'
+		( cd $(srcdir) && $(PL) -q -f test_memfile.pl -F none -g test_memfile,halt -t 'halt(1)' )
 
 check-unit::
-		$(PL) -q -f test.pl -g run_tests,halt -t 'halt(1)'
+		( cd $(srcdir) && $(PL) -q -f test.pl -g run_tests,halt -t 'halt(1)' )
 
 check-uri::
-		$(PL) -q -f test_uri.pl -g true -t test_uri
+		( cd $(srcdir) && $(PL) -q -f test_uri.pl -g true -t test_uri )
 
 check-cgi::
-		$(PL) -q -f test_cgi.pl -g true -t test_cgi
+		( cd $(srcdir) && $(PL) -q -f test_cgi.pl -g true -t test_cgi )
 
 check-process::
-		$(PL) -q -f test_process.pl -g true -t test_process
+		( cd $(srcdir) && $(PL) -q -f test_process.pl -g true -t test_process )
 
 check-read::
-		$(PL) -q -f test_readutil.pl -g true -t test_readutil
+		( cd $(srcdir) && $(PL) -q -f test_readutil.pl -g true -t test_readutil )
 
 ################################################################
 # Documentation

@@ -119,6 +119,8 @@ action(quit, _In, Out) :-
 		 *	    CLIENT SIDE		*
 		 *******************************/
 
+:- dynamic echo/1, slow/1, quit/1.
+
 :- dynamic
 	client/2.
 
@@ -258,16 +260,16 @@ report_failed :-
 
 runtest(Name) :-
 	format('Running test set "~w" ', [Name]),
-	flush,
+	flush_output,
 	functor(Head, Name, 1),
-	nth_clause(Head, _N, R),
+	clause(Head, _N, R),
 	clause(Head, _, R),
 	(   catch(Head, Except, true)
 	->  (   var(Except)
-	    ->  put(.), flush
+	    ->  put(.), flush_output
 	    ;   Except = blocked(Reason)
 	    ->  assert(blocked(Head, Reason)),
-		put(!), flush
+		put(!), flush_output
 	    ;   test_failed(R, Except)
 	    )
 	;   test_failed(R, fail)
