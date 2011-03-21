@@ -111,6 +111,12 @@ leave the details to this function.
 #ifdef __CYGWIN__
 #undef HAVE_H_ERRNO
 #endif
+#ifdef __MINGW32__
+
+//disgusting stuff :(
+#define __try if (1)
+#define __except(A) else
+#endif
 
 #include "nonblockio.h"
 
@@ -126,6 +132,8 @@ leave the details to this function.
 #ifdef __WINDOWS__
 #include <malloc.h>
 #endif
+
+
 
 #ifdef __WINDOWS__
 #define GET_ERRNO WSAGetLastError()
