@@ -19,9 +19,9 @@ CRYPTLIBS=@CLIB_CRYPTLIBS@
 MIMELIBS=maildrop/rfc2045/librfc2045.a maildrop/rfc822/librfc822.a
 
 LIBPL=		@CLIB_PLTARGETS@ streaminfo.pl process.pl prolog_server.pl sha.pl \
-		uri.pl
+		uid.pl uri.pl
 TARGETS=	@CLIB_TARGETS@ readutil.@SO@ streaminfo.@SO@ process.@SO@ \
-		sha4pl.@SO@ uri.@SO@
+		sha4pl.@SO@ uid.@SO@ uri.@SO@
 
 UNXOBJ=		error.o unix.o
 SOCKOBJ=	error.o socket.o nonblockio.o
@@ -33,6 +33,7 @@ TIMEOBJ=	error.o time.o
 FILESOBJ=	error.o files.o
 RLIMITOBJ=	error.o rlimit.o
 URIOBJ=		uri.o
+UIDOBJ=		uid.o
 RANDOMOBJ=	random.o
 READUTILOBJ=	readutil.o
 PROCESSOBJ=	error.o process.o
@@ -72,6 +73,8 @@ sha4pl.@SO@:	$(SHAOBJ)
 		$(LD) $(LDSOFLAGS) -o $@ $(SHAOBJ)
 uri.@SO@:	$(URIOBJ)
 		$(LD) $(LDSOFLAGS) -o $@ $(URIOBJ)
+uid.@SO@:	$(UIDOBJ)
+		$(LD) $(LDSOFLAGS) -o $@ $(UIDOBJ)
 
 socket.o:	$(srcdir)/socket.c $(srcdir)/sockcommon.c
 
@@ -156,15 +159,17 @@ check-read::
 # Documentation
 ################################################################
 
-TEXEXTRA=process.tex uri.tex filesex.tex
+TEXEXTRA=process.tex uri.tex filesex.tex uid.tex
 $(TEX):	    	$(TEXEXTRA)
 
-uri.tex:	uri.pl
+uri.tex:	$(srcdir)/uri.pl
 		$(PLTOTEX) 'library(uri)'
-process.tex:	process.pl
+process.tex:	$(srcdir)/process.pl
 		$(PLTOTEX) 'library(process)'
-filesex.tex:	filesex.pl
+filesex.tex:	$(srcdir)/filesex.pl
 		$(PLTOTEX) 'library(filesex)'
+uid.tex:	$(srcdir)/uid.pl
+		$(PLTOTEX) 'library(uid)'
 
 ################################################################
 # Clean
