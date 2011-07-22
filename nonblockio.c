@@ -162,30 +162,41 @@ leave the details to this function.
 static CRITICAL_SECTION mutex;
 static CRITICAL_SECTION mutex_free;
 
-#define LOCK() EnterCriticalSection(&mutex)
-#define UNLOCK() LeaveCriticalSection(&mutex)
-#define LOCK_FREE() EnterCriticalSection(&mutex_free)
-#define UNLOCK_FREE() LeaveCriticalSection(&mutex_free)
-#define INITLOCK() (InitializeCriticalSection(&mutex), \
-		    InitializeCriticalSection(&mutex_free))
-#else
+#define LOCK()			EnterCriticalSection(&mutex)
+#define UNLOCK()		LeaveCriticalSection(&mutex)
+#define LOCK_FREE()		EnterCriticalSection(&mutex_free)
+#define UNLOCK_FREE()		LeaveCriticalSection(&mutex_free)
+#define INITLOCK()		( InitializeCriticalSection(&mutex), \
+				  InitializeCriticalSection(&mutex_free))
+#define LOCK_SOCKET(s)		EnterCriticalSection(&s->socket_mutex)
+#define UNLOCK_SOCKET(s)	LeaveCriticalSection(&s->socket_mutex)
+#define INIT_SOCKET_LOCK(s)	InitializeCriticalSection(&s->socket_mutex)
+#define FREE_SOCKET_LOCK(s)	DeleteCriticalSection(&s->socket_mutex)
+#else /*__WINDOWS__*/
 #include <pthread.h>
 
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-#define LOCK() pthread_mutex_lock(&mutex)
-#define UNLOCK() pthread_mutex_unlock(&mutex)
-#define LOCK_FREE()
-#define UNLOCK_FREE()
-#define INITLOCK()
+#define LOCK()			pthread_mutex_lock(&mutex)
+#define UNLOCK()		pthread_mutex_unlock(&mutex)
+#define LOCK_FREE()		(void)0
+#define UNLOCK_FREE()		(void)0
+#define INITLOCK()		(void)0
+#define FREE_SOCKET_LOCK(s)	(void)0
+#endif /*__WINDOWS__*/
+#else /* _REENTRANT */
+#define LOCK()			(void)0
+#define UNLOCK()		(void)0
+#define LOCK_FREE()		(void)0
+#define UNLOCK_FREE()		(void)0
+#define INITLOCK()		(void)0
+#define FREE_SOCKET_LOCK(s)	(void)0
+#if __WINDOWS__
+#define LOCK_SOCKET(s)		(void)0
+#define UNLOCK_SOCKET(s)	(void)0
+#define INIT_SOCKET_LOCK(s)	(void)0
 #endif
-#else
-#define LOCK()
-#define UNLOCK()
-#define LOCK_FREE()
-#define UNLOCK_FREE()
-#define INITLOCK()
-#endif
+#endif /* _REENTRANT */
 
 #define set(s, f)   ((s)->flags |= (f))
 #define clear(s, f) ((s)->flags &= ~(f))
@@ -214,6 +225,7 @@ typedef struct _plsocket
   DWORD             close_timeout;      /* Time to reap socket if FD_CLOSE is not received */
   int		    done;		/* request completed */
   int		    w32_flags;		/* or of received FD_* */
+  CRITICAL_SECTION  socket_mutex;       /* synchronization mutex */
   union
   { struct
     { struct sockaddr_in addr;		/* accepted address */
@@ -394,8 +406,10 @@ static int
 doneRequest(plsocket *s)
 { SOCKET sock;
 
+  LOCK_SOCKET(s);
   s->done = TRUE;
   s->request = REQ_NONE;
+  UNLOCK_SOCKET(s);
 
   /* If we have FD_CLOSE, then we know we can release the socket to the OS */
   if ( (s->w32_flags & FD_CLOSE) && (sock=s->socket) >= 0 )
@@ -453,11 +467,13 @@ nbio_wait(nbio_sock_t socket, nbio_request request)
   if ( !(s=nbio_to_plsocket(socket)) )
     return -1;
 
+  LOCK_SOCKET(s);
   s->flags  |= PLSOCK_WAITING;
   s->done    = FALSE;
   s->error   = 0;
   s->thread  = GetCurrentThreadId();
   s->request = request;
+  UNLOCK_SOCKET(s);
 
   SendMessage(State()->hwnd, WM_REQUEST, 1, (LPARAM)&s);
 
@@ -519,11 +535,13 @@ nbio_select(int n,
       { plsocket *s = nbio_to_plsocket(i);
 
 	if ( s )
-	{ s->flags  |= PLSOCK_WAITING;
+	{ LOCK_SOCKET(s);
+	  s->flags  |= PLSOCK_WAITING;
 	  s->done    = FALSE;
 	  s->error   = 0;
 	  s->thread  = GetCurrentThreadId();
 	  s->request = (s->flags & PLSOCK_LISTEN) ? REQ_ACCEPT : REQ_READ;
+	  UNLOCK_SOCKET(s);
 	  sockets[i] = s;
 	} else
 	{ DEBUG(2, Sdprintf("nbio_select(): no socket for %d\n", i));
@@ -604,11 +622,13 @@ placeRequest(plsocket *s, nbio_request request)
 { if ( s->magic != PLSOCK_MAGIC )
     Sdprintf("placeRequest: %p has bad magic\n", s);
 
+  LOCK_SOCKET(s);
   s->error   = 0;
   s->done    = FALSE;
   s->thread  = GetCurrentThreadId();
   s->request = request;
   clear(s, PLSOCK_WAITING);
+  UNLOCK_SOCKET(s);
 
   SendMessage(State()->hwnd, WM_REQUEST, 1, (LPARAM)&s);
   DEBUG(2, Sdprintf("%d (%ld): Placed %s request for %d\n",
@@ -793,7 +813,14 @@ doRequest(plsocket *s)
 	{ s->rdata.write.bytes = (int)s->rdata.write.written;
 	  doneRequest(s);
 	}
+      } else if ( s->w32_flags & FD_CLOSE )
+      { if ( s->rdata.write.written > 0 )
+	  s->rdata.write.bytes = (int)s->rdata.write.written;
+	else
+	  s->rdata.write.bytes = -1;
+	doneRequest(s);
       }
+      break;
     case REQ_SENDTO:
       if ( s->w32_flags & FD_WRITE )
       { int n;
@@ -827,6 +854,7 @@ doRequest(plsocket *s)
 	s->rdata.sendto.bytes = n;
 	doneRequest(s);
       }
+      break;
   }
 
   return TRUE;
@@ -1310,6 +1338,7 @@ allocSocket(SOCKET socket)
 #ifdef __WINDOWS__
   p->w32_flags = 0;
   p->request   = REQ_NONE;
+  INIT_SOCKET_LOCK(p);
 #endif
   p->input = p->output = (IOSTREAM*)NULL;
 
@@ -1341,6 +1370,7 @@ freeSocket(plsocket *s)
   sock = s->socket;
   socket = s->id;
   s->magic = 0;
+  FREE_SOCKET_LOCK(s);
   PL_free(s);
   UNLOCK_FREE();
 
@@ -1620,7 +1650,7 @@ nbio_cleanup(void)
 
 #ifdef __WINDOWS__
 
-/* socketIsPendingClose() is called if a Windows socked is closed, but
+/* socketIsPendingClose() is called if a Windows socket is closed, but
    we did not yet see an FD_CLOSE message for it.  We will reuse this
    socket using lookupTimedOutSocket() if we have not seen the FD_CLOSE
    after 30 seconds.  This is a random time.  Are we guaranteed to get
