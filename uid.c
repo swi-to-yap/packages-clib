@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/types.h>
+#ifndef __WINDOWS__
 #include <pwd.h>
 #include <grp.h>
 
@@ -226,10 +227,13 @@ pl_setegid(term_t gid)
   return error(errno, "setegid", "gid", gid);
 }
 
+#endif
 
 install_t
 install_uid()
-{ PL_register_foreign("getuid", 1, pl_getuid, 0);
+{
+#ifndef __WINDOWS__
+ PL_register_foreign("getuid", 1, pl_getuid, 0);
   PL_register_foreign("geteuid", 1, pl_geteuid, 0);
   PL_register_foreign("getgid", 1, pl_getgid, 0);
   PL_register_foreign("getegid", 1, pl_getegid, 0);
@@ -239,5 +243,6 @@ install_uid()
   PL_register_foreign("setgid", 1, pl_setgid, 0);
   PL_register_foreign("seteuid", 1, pl_seteuid, 0);
   PL_register_foreign("setegid", 1, pl_setegid, 0);
+#endif
 }
 
