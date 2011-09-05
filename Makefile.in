@@ -14,16 +14,6 @@ DOC=clib
 PKGCFLAGS=-I$(srcdir) -I$(srcdir)/maildrop/rfc2045 -I$(srcdir)/maildrop/rfc822
 include ../Makefile.defs
 
-<<<<<<< HEAD
-NETLIBS=@CLIB_NETLIBS@
-CRYPTLIBS=@CLIB_CRYPTLIBS@
-MIMELIBS=maildrop/rfc2045/librfc2045.a maildrop/rfc822/librfc822.a
-
-LIBPL=		@CLIB_PLTARGETS@ streaminfo.pl process.pl prolog_server.pl sha.pl \
-		uid.pl uri.pl
-TARGETS=	@CLIB_TARGETS@ readutil.@SO@ streaminfo.@SO@ process.@SO@ \
-		sha4pl.@SO@ uid.@SO@ uri.@SO@
-=======
 NETLIBS=@NETLIBS@
 CRYPTLIBS=@CRYPTLIBS@
 LIBS=@LIBS@
@@ -33,7 +23,6 @@ LIBPL=		@PLTARGETS@ streaminfo.pl process.pl prolog_server.pl sha.pl \
 		uri.pl
 TARGETS=	@TARGETS@ readutil.@SO@ streaminfo.@SO@ process.@SO@ \
 		sha4pl.@SO@ uri.@SO@
->>>>>>> 68d34a11281185aca3ec6cd3fcd0e67b0f5c0f3a
 
 UNXOBJ=		error.o unix.o
 SOCKOBJ=	error.o socket.o nonblockio.o
@@ -122,11 +111,9 @@ ln-install::
 rpm-install:	install
 
 html-install::
-		mkdir -p $(DESTDIR)$(PKGDOCDIR)
 		$(INSTALL) -m 644 clib.html $(DESTDIR)$(PKGDOCDIR)
 
 pdf-install::
-		mkdir -p $(DESTDIR)$(PKGDOCDIR)
 		$(INSTALL) -m 644 clib.pdf $(DESTDIR)$(PKGDOCDIR)
 
 uninstall::
