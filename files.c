@@ -18,7 +18,7 @@
 
     You should have received a copy of the GNU Lesser General Public
     License along with this library; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #ifdef HAVE_CONFIG_H
@@ -41,6 +41,10 @@
 
 #ifdef __WINDOWS__
 
+#if defined(__MINGW32__)
+#define WINVER 0x0501
+#endif
+
 #define MAKE_FUNCTORS 1
 #include <windows.h>
 #include "win_error.c"
@@ -49,11 +53,16 @@
 /*#define HAVE_UTIME 1:	Broken ...*/
 #ifdef HAVE_UTIME
 #include <sys/utime.h>
-#define utimestruct _utimbuf
+/* FIXME: under __MINGW32__ we could use `utimbuf' (no leading underscore. */
+#define utimestruct struct _utimbuf
 #define utimefunc _wutime
 #endif
 #define FCHAR wchar_t
 #define PL_get_file_name PL_get_file_nameW
+
+#if defined(__MINGW32__)
+#include <winbase.h>
+#endif
 
 #else /*__WINDOWS__*/
 

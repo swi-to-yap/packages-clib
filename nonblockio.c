@@ -19,7 +19,7 @@
 
     You should have received a copy of the GNU Lesser General Public
     License along with this library; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #define O_DEBUG 1
@@ -116,6 +116,15 @@ leave the details to this function.
 //disgusting stuff :(
 #define __try if (1)
 #define __except(A) else
+#endif
+
+#if defined(__MINGW32__)
+#define __SEH_NOOP 1
+#endif
+
+#if defined(__MINGW32__)
+#define WINVER 0x0501
+#include <ws2tcpip.h>
 #endif
 
 #include "nonblockio.h"
@@ -274,6 +283,7 @@ static int socketIsPendingClose(plsocket *s);
 static const char *WinSockError(unsigned long eno);
 #endif
 
+#ifndef __WINDOWS__
 static int
 need_retry(int error)
 { if ( error == EINTR || error == EAGAIN || error == EWOULDBLOCK )
@@ -281,6 +291,7 @@ need_retry(int error)
 
   return FALSE;
 }
+#endif
 
 #ifdef O_DEBUG
 static int debugging;
@@ -372,8 +383,12 @@ nbio_fcntl(nbio_sock_t socket, int op, int arg)
       switch(arg)
       { case O_NONBLOCK:
 	{ int rval;
+#if defined(__MINGW32__)
+	  u_long non_block;
+#else
+          /* FIXME: is this really `int' for MSC? */
 	  int non_block;
-
+#endif
 	  non_block = 1;
 	  rval = ioctlsocket(s->socket, FIONBIO, &non_block);
 	  if ( rval )
@@ -942,6 +957,9 @@ socket_wnd_proc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 	switch(s->request)
 	{ case REQ_CONNECT:
 	    break;
+          case REQ_NONE:
+            /* FIXME: is this OK? */
+            break;
 	  case REQ_ACCEPT:
 	    s->rdata.accept.slave = SOCKET_ERROR;
 	    break;
@@ -1001,17 +1019,6 @@ HiddenFrameClass()
   }
 
   return name;
-}
-
-
-static void
-destroyHiddenWindow(int rval, void *closure)
-{ local_state *s = State();
-
-  if ( s->hwnd )
-  { DestroyWindow(s->hwnd);
-    s->hwnd = 0;
-  }
 }
 
 
@@ -1349,6 +1356,7 @@ allocSocket(SOCKET socket)
 }
 
 
+#ifndef __WINDOWS__
 static int
 freeSocket(plsocket *s)
 { int rval;
@@ -1388,6 +1396,7 @@ freeSocket(plsocket *s)
 
   return rval;
 }
+#endif
 
 
 		 /*******************************
