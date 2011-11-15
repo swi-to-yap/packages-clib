@@ -14,14 +14,14 @@ DOC=clib
 PKGCFLAGS=-I$(srcdir) -I$(srcdir)/maildrop/rfc2045 -I$(srcdir)/maildrop/rfc822
 include ../Makefile.defs
 
-NETLIBS=@NETLIBS@
-CRYPTLIBS=@CRYPTLIBS@
+NETLIBS=@CLIB_NETLIBS@
+CRYPTLIBS=@CLIB_CRYPTLIBS@
 LIBS=@LIBS@
 MIMELIBS=maildrop/rfc2045/librfc2045.a maildrop/rfc822/librfc822.a
 
-LIBPL=		@PLTARGETS@ streaminfo.pl process.pl prolog_server.pl sha.pl \
+LIBPL=		@CLIB_PLTARGETS@ streaminfo.pl process.pl prolog_server.pl sha.pl \
 		uri.pl
-TARGETS=	@TARGETS@ readutil.@SO@ streaminfo.@SO@ process.@SO@ \
+TARGETS=	@CLIB_TARGETS@ readutil.@SO@ streaminfo.@SO@ process.@SO@ \
 		sha4pl.@SO@ uri.@SO@
 
 UNXOBJ=		error.o unix.o
