@@ -41,6 +41,9 @@
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
 #endif
+#if defined(__APPLE_)
+#include <crt_externs.h>
+#endif
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Unix process management.
@@ -239,7 +242,12 @@ out:
 
 static foreign_t
 pl_environ(term_t l)
-{ extern char **environ;
+{
+#if defined(__APPLE__)
+  char **environ = _NSGetEnviron();
+#else
+  extern char **environ;
+#endif
   char **e;
   term_t t = PL_copy_term_ref(l);
   term_t t2 = PL_new_term_ref();
