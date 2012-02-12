@@ -155,7 +155,7 @@ check-read::
 # Documentation
 ################################################################
 
-TEXEXTRA=process.tex uri.tex filesex.tex uid.tex
+TEXEXTRA=process.tex uri.tex filesex.tex uid.tex mime.tex
 $(TEX):		$(TEXEXTRA)
 
 uri.tex:	$(srcdir)/uri.pl

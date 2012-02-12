@@ -81,12 +81,21 @@ prolog_server(Port, Options) :-
 server_loop(ServerSocket, Options) :-
 	tcp_accept(ServerSocket, Slave, Peer),
 	tcp_open_socket(Slave, InStream, OutStream),
+	set_stream(InStream, close_on_abort(false)),
+	set_stream(OutStream, close_on_abort(false)),
 	tcp_host_to_address(Host, Peer),
-	atom_concat('client@', Host, Alias),
-	thread_create(service_client(InStream, OutStream, Peer, Options),
-		      _,
-		      [ alias(Alias)
-		      ]),
+	(   Postfix = []
+	;   between(2, 1000, Num),
+	    Postfix = [-, Num]
+	),
+	atomic_list_concat(['client@', Host | Postfix], Alias),
+	catch(thread_create(
+		  service_client(InStream, OutStream, Peer, Options),
+		  _,
+		  [ alias(Alias)
+		  ]),
+	      error(permission_error(create, thread, Alias), _),
+	      fail), !,
 	server_loop(ServerSocket, Options).
 
 service_client(InStream, OutStream, Peer, Options) :-
@@ -96,9 +105,12 @@ service_client(InStream, OutStream, Peer, Options) :-
 	set_stream(InStream, tty(true)),
 	set_prolog_flag(tty_control, false),
 	current_prolog_flag(encoding, Enc),
-	set_stream(InStream, encoding(Enc)),
-	set_stream(OutStream, encoding(Enc)),
-	set_stream(InStream, newline(detect)),
+	set_stream(user_input, encoding(Enc)),
+	set_stream(user_output, encoding(Enc)),
+	set_stream(user_error, encoding(Enc)),
+	set_stream(user_input, newline(detect)),
+	set_stream(user_output, newline(dos)),
+	set_stream(user_error, newline(dos)),
 	format(user_error,
 	       'Welcome to the SWI-Prolog server on thread ~w~n~n',
 	       [Id]),

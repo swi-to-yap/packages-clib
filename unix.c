@@ -243,7 +243,11 @@ out:
 static foreign_t
 pl_environ(term_t l)
 {
+<<<<<<< HEAD
 #if defined(__APPLE__)
+=======
+#ifdef HAVE__NSGETENVIRON
+>>>>>>> 2951d129d25645ccab2cf14091bd2315a0f3f97f
   char **environ = _NSGetEnviron();
 #else
   extern char **environ;
