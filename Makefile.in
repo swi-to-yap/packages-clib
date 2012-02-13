@@ -12,7 +12,6 @@
 PACKAGE=clib
 DOC=clib
 PKGCFLAGS=-I$(srcdir) -I$(srcdir)/maildrop/rfc2045 -I$(srcdir)/maildrop/rfc822
-include ../Makefile.defs
 
 NETLIBS=@CLIB_NETLIBS@
 CRYPTLIBS=@CLIB_CRYPTLIBS@
@@ -21,6 +20,9 @@ MIMELIBS=maildrop/rfc2045/librfc2045.a maildrop/rfc822/librfc822.a
 
 LIBPL=		@CLIB_PLTARGETS@ streaminfo.pl process.pl prolog_server.pl sha.pl \
 		uri.pl
+
+include ../Makefile.defs
+
 TARGETS=	@CLIB_TARGETS@ readutil.@SO@ streaminfo.@SO@ process.@SO@ \
 		sha4pl.@SO@ uri.@SO@
 
@@ -97,9 +99,7 @@ install:	$(TARGETS)
 		  $(INSTALL_PROGRAM) $$f $(DESTDIR)$(SOLIBDIR); \
 		done
 		mkdir -p $(DESTDIR)$(PLLIBDIR)
-		for f in $(LIBPL); do \
-		  $(INSTALL_DATA) $(srcdir)/$$f $(DESTDIR)$(PLLIBDIR); \
-		done
+		$(INSTALL_DATA) $(LIBSRCPL) $(DESTDIR)$(PLLIBDIR)
 		$(MKINDEX)
 
 ln-install::
