@@ -70,8 +70,9 @@ following finds the executable for =ls=:
 *|Incompatibilities and current limitations|*
 
     * Where SICStus distinguishes between an internal process id and
-    the OS process id, this implements does not make this distinction.
-    This implies that is_process/1 is incomplete and unreliable.
+    the OS process id, this implementation does not make this
+    distinction. This implies that is_process/1 is incomplete and
+    unreliable.
 
     * SICStus only supports ISO 8859-1 (latin-1). This implementation
     supports arbitrary OS multibyte interaction using the default
@@ -79,7 +80,7 @@ following finds the executable for =ls=:
 
     * It is unclear what the detached(true) option is supposed to do. Disable
     signals in the child? Use setsid() to detach from the session?  The
-    current implementation uses setsid()
+    current implementation uses setsid() on Unix systems.
 
     * An extra option env([Name=Value, ...]) is added to
     process_create/3.
@@ -113,6 +114,9 @@ following finds the executable for =ls=:
 %	    the terms below. If pipe(Pipe) is used, the Prolog stream is
 %	    a stream in text-mode using the encoding of the default
 %	    locale.  The encoding can be changed using set_stream/2.
+%	    The options =stdout= and =stderr= may use the same stream,
+%	    in which case both output streams are connected to the same
+%	    Prolog stream.
 %
 %		* std
 %		Just share with the Prolog I/O streams
@@ -181,7 +185,27 @@ following finds the executable for =ls=:
 %	?- process_create(path(ls), ['-l'], []).
 %	==
 %
-%	@tbd	The detach options is a no-op.
+%	The following example uses grep to find  all matching lines in a
+%	file.
+%
+%	==
+%	grep(File, Pattern, Lines) :-
+%		process_create(path(grep), [ Pattern, file(File) ],
+%			       [ stdout(pipe(Out))
+%			       ]),
+%		read_lines(Out, Lines).
+%
+%	read_lines(Out, Lines) :-
+%		read_line_to_codes(Out, Line1),
+%		read_lines(Line1, Out, Lines).
+%
+%	read_lines(end_of_file, _, []) :- !.
+%	read_lines(Codes, Out, [Line|Lines]) :-
+%		atom_codes(Line, Codes),
+%		read_line_to_codes(Out, Line2),
+%		read_lines(Line2, Out, Lines).
+%	==
+%
 %	@error	process_error(Exe, Status) where Status is one of
 %		exit(Code) or killed(Signal).  Raised if the process
 %		does not exit with status 0.
@@ -289,6 +313,9 @@ process_release(PID) :-
 %	    * release(+Bool)
 %	    Do/do not release the process.  We do not support this flag
 %	    and a domain_error is raised if release(false) is provided.
+%
+%	@param	Status is one of exit(Code) or killed(Signal), where
+%		Code and Signal are integers.
 
 process_wait(PID, Status) :-
 	process_wait(PID, Status, []).

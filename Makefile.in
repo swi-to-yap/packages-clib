@@ -19,7 +19,7 @@ LIBS=@LIBS@
 MIMELIBS=maildrop/rfc2045/librfc2045.a maildrop/rfc822/librfc822.a
 
 LIBPL=		@CLIB_PLTARGETS@ streaminfo.pl process.pl prolog_server.pl sha.pl \
-		uri.pl
+		uri.pl udp_broadcast.pl
 
 include ../Makefile.defs
 
@@ -46,35 +46,35 @@ SHAOBJ=		error.o sha4pl.o sha1/sha1.o sha1/sha2.o \
 all:		$(TARGETS)
 
 unix.@SO@:	$(UNXOBJ)
-		$(LD) -o $@ $(UNXOBJ) $(LDSOFLAGS)
+		$(LD) $(LDSOFLAGS) -o $@ $(UNXOBJ) $(LIBPLSO)
 socket.@SO@:	$(SOCKOBJ)
-		$(LD) -o $@ $(SOCKOBJ) $(NETLIBS) $(LDSOFLAGS)
+		$(LD) $(LDSOFLAGS) -o $@ $(SOCKOBJ) $(NETLIBS) $(LIBPLSO)
 cgi.@SO@:	$(CGIOBJ)
-		$(LD) -o $@ $(CGIOBJ) $(LDSOFLAGS)
+		$(LD) $(LDSOFLAGS) -o $@ $(CGIOBJ) $(LIBPLSO)
 crypt.@SO@:	$(CRYPTOBJ)
-		$(LD) -o $@ $(CRYPTOBJ) $(CRYPTLIBS) $(LDSOFLAGS)
+		$(LD) $(LDSOFLAGS) -o $@ $(CRYPTOBJ) $(CRYPTLIBS) $(LIBPLSO)
 memfile.@SO@:	$(MEMOBJ)
-		$(LD) -o $@ $(MEMOBJ) $(LIBS) $(LDSOFLAGS)
+		$(LD) $(LDSOFLAGS) -o $@ $(MEMOBJ) $(LIBPLSO) $(LIBS)
 mime.@SO@:	$(MIMEOBJ) $(MIMELIBS)
-		$(LD) -o $@ $(MIMEOBJ) $(MIMELIBS) $(LDSOFLAGS)
+		$(LD) $(LDSOFLAGS) -o $@ $(MIMEOBJ) $(LIBPLSO) $(MIMELIBS)
 time.@SO@:	$(TIMEOBJ)
-		$(LD) -o $@ $(TIMEOBJ) $(LIBS) $(LDSOFLAGS)
+		$(LD) $(LDSOFLAGS) -o $@ $(TIMEOBJ) $(LIBPLSO) $(LIBS)
 files.@SO@:	$(FILESOBJ)
-		$(LD) -o $@ $(FILESOBJ) $(LIBS) $(LDSOFLAGS)
+		$(LD) $(LDSOFLAGS) -o $@ $(FILESOBJ) $(LIBPLSO) $(LIBS)
 rlimit.@SO@:	$(RLIMITOBJ)
-		$(LD) -o $@ $(RLIMITOBJ) $(LIBS) $(LDSOFLAGS)
+		$(LD) $(LDSOFLAGS) -o $@ $(RLIMITOBJ) $(LIBPLSO) $(LIBS)
 readutil.@SO@:	$(READUTILOBJ)
-		$(LD) -o $@ $(READUTILOBJ) $(LDSOFLAGS)
+		$(LD) $(LDSOFLAGS) -o $@ $(READUTILOBJ) $(LIBPLSO)
 process.@SO@:	$(PROCESSOBJ)
-		$(LD) -o $@ $(PROCESSOBJ) $(LDSOFLAGS)
+		$(LD) $(LDSOFLAGS) -o $@ $(PROCESSOBJ) $(LIBPLSO)
 streaminfo.@SO@: $(STREAMINFOOBJ)
-		$(LD) -o $@ $(STREAMINFOOBJ) $(LDSOFLAGS)
+		$(LD) $(LDSOFLAGS) -o $@ $(STREAMINFOOBJ) $(LIBPLSO)
 sha4pl.@SO@:	$(SHAOBJ)
-		$(LD) -o $@ $(SHAOBJ) $(LDSOFLAGS)
+		$(LD) $(LDSOFLAGS) -o $@ $(SHAOBJ) $(LIBPLSO)
 uri.@SO@:	$(URIOBJ)
-		$(LD) -o $@ $(URIOBJ) $(LIBS) $(LDSOFLAGS)
+		$(LD) $(LDSOFLAGS) -o $@ $(URIOBJ) $(LIBS) $(LIBPLSO)
 uid.@SO@:	$(UIDOBJ)
-		$(LD) -o $@ $(UIDOBJ) $(LDSOFLAGS)
+		$(LD) $(LDSOFLAGS) -o $@ $(UIDOBJ) $(LIBPLSO)
 
 socket.o:	$(srcdir)/socket.c $(srcdir)/sockcommon.c
 
@@ -155,7 +155,7 @@ check-read::
 # Documentation
 ################################################################
 
-TEXEXTRA=process.tex uri.tex filesex.tex uid.tex mime.tex
+TEXEXTRA=process.tex uri.tex filesex.tex uid.tex mime.tex udpbroadcast.tex
 $(TEX):		$(TEXEXTRA)
 
 uri.tex:	$(srcdir)/uri.pl
@@ -166,6 +166,8 @@ filesex.tex:	$(srcdir)/filesex.pl
 		$(PLTOTEX) 'library(filesex)'
 uid.tex:	$(srcdir)/uid.pl
 		$(PLTOTEX) 'library(uid)'
+udpbroadcast.tex:	udp_broadcast.pl
+		$(PLTOTEX) 'library(udp_broadcast)'
 
 ################################################################
 # Clean

@@ -119,7 +119,9 @@ leave the details to this function.
 #endif
 
 #if defined(__MINGW32__)
-#define __SEH_NOOP 1
+#define __try
+#define __except(_) if (0)
+#define __finally
 #endif
 
 #if defined(__MINGW32__)
@@ -716,7 +718,7 @@ doRequest(plsocket *s)
 			    (int)s->socket, WinSockError(s->error)));
 
 	  if ( s->error != WSAEWOULDBLOCK )
-	  { s->rdata.accept.slave = (SOCKET)-1;
+	  { s->rdata.accept.slave = (nbio_sock_t)-1;
 	    doneRequest(s);
 	  }
 	} else
@@ -1323,6 +1325,7 @@ allocSocket(SOCKET socket)
     { if ( p->close_timeout && p->close_timeout < now )
       { SOCKET sock;
 
+	p->close_timeout = 0;
 	if ( (sock=p->socket) )		/* is this ever the case? */
 	{ int rval;
 

@@ -627,7 +627,7 @@ open_process_pipe(process_context *pc, int which, int fd)
 
   pc->open_mask |= (1<<which);
 #ifdef __WINDOWS__
-  pc->pipes[which] = _open_osfhandle((long)fd, _O_BINARY);
+  pc->pipes[which] = _open_osfhandle((intptr_t)fd, _O_BINARY);
 #else
   pc->pipes[which] = fd;
 #endif
@@ -965,8 +965,14 @@ create_pipes(p_options *info)
   { p_stream *s = &info->streams[i];
 
     if ( s->term )
-    { if ( !CreatePipe(&s->fd[0], &s->fd[1], &sa, 1<<13) )
-      { return win_error("CreatePipe");
+    { if ( i == 2 && info->streams[1].term &&
+	   PL_compare(info->streams[1].term, info->streams[2].term) == 0 )
+      { s->fd[0] = info->streams[1].fd[0];
+	s->fd[1] = info->streams[1].fd[1];
+      } else
+      { if ( !CreatePipe(&s->fd[0], &s->fd[1], &sa, 1<<13) )
+	{ return win_error("CreatePipe");
+	}
       }
     }
   }
@@ -977,7 +983,7 @@ create_pipes(p_options *info)
 
 static IOSTREAM *
 Sopen_handle(HANDLE h, const char *mode)
-{ return Sfdopen(_open_osfhandle((long)h, _O_BINARY), mode);
+{ return Sfdopen(_open_osfhandle((intptr_t)h, _O_BINARY), mode);
 }
 
 
@@ -1162,9 +1168,15 @@ create_pipes(p_options *info)
   { p_stream *s = &info->streams[i];
 
     if ( s->term )
-    { if ( pipe(s->fd) )
-      { assert(errno = EMFILE);
-	return resource_error("open_files");
+    { if ( i == 2 && info->streams[1].term &&
+	   PL_compare(info->streams[1].term, info->streams[2].term) == 0 )
+      { s->fd[0] = info->streams[1].fd[0];
+	s->fd[1] = info->streams[1].fd[1];
+      } else
+      { if ( pipe(s->fd) )
+	{ assert(errno = EMFILE);
+	  return resource_error("open_files");
+	}
       }
     }
   }
@@ -1509,7 +1521,7 @@ process_wait(term_t pid, term_t code, term_t options)
 
 static foreign_t
 process_kill(term_t pid, term_t signal)
-{ int p;
+{ pid_t p;
 
   if ( !get_pid(pid, &p) )
     return FALSE;
