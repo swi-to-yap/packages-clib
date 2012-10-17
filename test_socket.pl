@@ -35,11 +35,17 @@
 	    client/1			% +Address
 	  ]).
 
+
+:- dynamic echo/1, slow/1, quit/1.
+
 :- asserta(user:file_search_path(foreign, '.')).
 
-:- use_module(socket).
-:- use_module(user:socket).		% debugging
-:- use_module(streampool).
+:- use_module(library(socket)).
+%:- use_module(user:socket).		% debugging
+%:- use_module(library(streampool)).
+%:- use_module('/home/miguel/Desktop/temp/yap-6.3/library/socket.pl').
+:- use_module(library(streampool)).
+
 :- use_module(library(debug)).
 
 test_socket :-
@@ -118,8 +124,6 @@ action(quit, _In, Out) :-
 		 /*******************************
 		 *	    CLIENT SIDE		*
 		 *******************************/
-
-:- dynamic echo/1, slow/1, quit/1.
 
 :- dynamic
 	client/2.
@@ -262,8 +266,8 @@ runtest(Name) :-
 	format('Running test set "~w" ', [Name]),
 	flush_output,
 	functor(Head, Name, 1),
-	clause(Head, _N, R),
-	clause(Head, _, R),
+%	nth_clause(Head, _N, R),
+	clause( Head, _, R),
 	(   catch(Head, Except, true)
 	->  (   var(Except)
 	    ->  put(.), flush_output
