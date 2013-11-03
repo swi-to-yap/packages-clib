@@ -5,7 +5,7 @@
 ################################################################
 
 CC=@CC@
-CFLAGS=@MAILDROP_CFLAGS@ @DEFS@
+CFLAGS=@CFLAGS@ @DEFS@ -I. -I$(srcdir) -I$(srcdir)/..
 LIBS=@LIBS@
 AR=@AR@
 RANLIB=@RANLIB@

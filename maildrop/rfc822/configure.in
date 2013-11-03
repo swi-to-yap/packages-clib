@@ -20,7 +20,7 @@ AC_USE_SYSTEM_EXTENSIONS
 
 if test "$GCC" = yes ; then
         CXXFLAGS="$CXXFLAGS -Wall"
-        CFLAGS="$CFLAGS -Wall"
+        CFLAGS="$CFLAGS -Wal"
 fi
 
 dnl Checks for libraries.
