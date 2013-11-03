@@ -45,17 +45,17 @@ AC_CHECK_FUNC(gethostent, [], [
 dnl Configure UUID library.  We use the OSSP UUID library, but it seems
 dnl to be installed in various places.
 
-if test x"$LIBUUID" = "x"; then
+if test x"$CLIB_LIBUUID" = "x"; then
 AC_CHECK_LIB(ossp-uuid, uuid_create,
-	     [ LIBUUID=-lossp-uuid
+	     [ CLIB_LIBUUID=-lossp-uuid
 	     ])
 fi
-if test x"$LIBUUID" = "x"; then
+if test x"$CLIB_LIBUUID" = "x"; then
 AC_CHECK_LIB(uuid, uuid_create,
-	     [ LIBUUID=-luuid
+	     [ CLIB_LIBUUID=-luuid
 	     ])
 fi
-if test x"$LIBUUID" = "x"; then
+if test x"$CLIB_LIBUUID" = "x"; then
   AC_MSG_WARN([ Cannot find libossp-uuid or libuuid -- dropping uuid.pl])
 else
   if test x"$UUID_H" = "x"; then
@@ -75,7 +75,7 @@ else
   else
     AC_DEFINE_UNQUOTED([UUID_H], [<$UUID_H>],
 	      [ Define to name of the UUID header file. ])
-    TARGETS="$TARGETS uuid.$SO"
+    CLIB_TARGETS="$CLIB_TARGETS uuid.$SO"
   fi
 fi
 
@@ -91,7 +91,7 @@ AC_DEFINE(HAVE_CRYPT, 1,
 LIBS="$oldlibs"
 
 AC_CHECK_FUNC(syslog,
-	      [ TARGETS="$TARGETS syslog.$SO" ],
+	      [ CLIB_TARGETS="$CLIB_TARGETS syslog.$SO" ],
 	      AC_MSG_WARN([Cannot find syslog"()" -- dropping syslog.pl]))
 
 AC_MSG_CHECKING("Configuring MIME libraries")
@@ -185,16 +185,9 @@ else
   AC_MSG_WARN([Cannot find getrlimit"()" -- dropping rlimit.pl])
 fi
 
-<<<<<<< HEAD
 CLIB_PLTARGETS=`echo $CLIB_TARGETS | sed -e "s/\.$SO/.pl/g" -e "s/files.pl/filesex.pl/"`
 if echo "$PL_CLIB_TARGETS" | grep socket.pl 2>&1 >/dev/null; then
   CLIB_PLTARGETS="$PLCLIB_TARGETS streampool.pl"
-=======
-
-PLTARGETS=`echo $TARGETS | sed -e "s/\.$SO/.pl/g" -e "s/files.pl/filesex.pl/"`
-if echo "$PLTARGETS" | grep socket.pl 2>&1 >/dev/null; then
-  PLTARGETS="$PLTARGETS streampool.pl"
->>>>>>> a3b4bfa7a499bbdf246bdc6c66c42e6a72eecf82
 fi
 
 m4_ifdef([HAS_TOP],[m4_ignore],[   
