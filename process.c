@@ -1,11 +1,10 @@
-/*  $Id$
-
-    Part of SWI-Prolog
+/*  Part of SWI-Prolog
 
     Author:        Jan Wielemaker
-    E-mail:        J.Wielemaker@uva.nl
+    E-mail:        J.Wielemaker@vu.nl
     WWW:           http://www.swi-prolog.org
-    Copyright (C): 2008-2009, University of Amsterdam
+    Copyright (C): 2008-2013, University of Amsterdam
+			      VU University Amsterdam
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -27,6 +26,7 @@
 #endif
 
 /*#define O_DEBUG 1*/
+#define _GNU_SOURCE			/* get pipe2() */
 #include <SWI-Stream.h>
 #include <SWI-Prolog.h>
 #include "error.h"
@@ -34,6 +34,7 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
+#include <signal.h>
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
@@ -43,8 +44,12 @@
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
+
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
 #endif
 
 static atom_t ATOM_stdin;
@@ -56,13 +61,12 @@ static atom_t ATOM_process;
 static atom_t ATOM_detached;
 static atom_t ATOM_cwd;
 static atom_t ATOM_env;
+static atom_t ATOM_priority;
 static atom_t ATOM_window;
 static atom_t ATOM_timeout;
 static atom_t ATOM_release;
 static atom_t ATOM_infinite;
 static functor_t FUNCTOR_error2;
-static functor_t FUNCTOR_type_error2;
-static functor_t FUNCTOR_domain_error2;
 static functor_t FUNCTOR_process_error2;
 static functor_t FUNCTOR_system_error2;
 static functor_t FUNCTOR_pipe1;
@@ -99,47 +103,8 @@ typedef char echar;
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ISSUES:
 	- Deal with child errors (no cwd, cannot execute, etc.)
-	- Windows version
 	- Complete test suite
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
-
-		 /*******************************
-		 *	      ERRORS		*
-		 *******************************/
-
-static int
-type_error(term_t actual, const char *expected)
-{ term_t ex;
-
-  if ( (ex=PL_new_term_ref()) &&
-       PL_unify_term(ex,
-		     PL_FUNCTOR, FUNCTOR_error2,
-		       PL_FUNCTOR, FUNCTOR_type_error2,
-		         PL_CHARS, expected,
-		         PL_TERM, actual,
-		       PL_VARIABLE) )
-    return PL_raise_exception(ex);
-
-  return FALSE;
-}
-
-
-static int
-domain_error(term_t actual, const char *expected)
-{ term_t ex;
-
-  if ( (ex=PL_new_term_ref()) &&
-       PL_unify_term(ex,
-		     PL_FUNCTOR, FUNCTOR_error2,
-		       PL_FUNCTOR, FUNCTOR_domain_error2,
-		         PL_CHARS, expected,
-		         PL_TERM, actual,
-		       PL_VARIABLE) )
-    return PL_raise_exception(ex);
-
-  return FALSE;
-}
 
 
 		 /*******************************
@@ -189,6 +154,7 @@ typedef struct p_options
   p_stream streams[3];
   int   detached;			/* create as detached */
   int   window;				/* Show a window? */
+  int   priority;			/* Process priority */
 } p_options;
 
 
@@ -262,7 +228,7 @@ get_echars_arg_ex(int i, term_t from, term_t arg, echar **sp, size_t *lenp)
 
   for(s = *sp, e = s+*lenp; s<e; s++)
   { if ( !*s )
-      return domain_error(arg, "text_non_zero_code");
+      return PL_domain_error("text_non_zero_code", arg);
   }
 
   return TRUE;
@@ -296,7 +262,7 @@ parse_environment(term_t t, p_options *info)
     size_t len;
 
     if ( !PL_is_functor(head, FUNCTOR_eq2) )
-      return type_error(head, "environment_variable");
+      return PL_type_error("environment_variable", head);
 
     if ( !get_echars_arg_ex(1, head, tmp, &s, &len) )
       return FALSE;
@@ -310,8 +276,8 @@ parse_environment(term_t t, p_options *info)
     count++;
   }
 
-  if ( !PL_get_nil(tail) )
-    return type_error(tail, "list");
+  if ( !PL_get_nil_ex(tail) )
+    return FALSE;
 
 #ifdef __WINDOWS__
   add_ecbuf(eb, ECHARS("\0"), 1);
@@ -333,7 +299,7 @@ parse_environment(term_t t, p_options *info)
 static int
 get_stream(term_t t, p_options *info, p_stream *stream)
 { atom_t a;
-
+  int i;
   if ( PL_get_atom(t, &a) )
   { if ( a == ATOM_null )
     { stream->type = std_null;
@@ -342,16 +308,24 @@ get_stream(term_t t, p_options *info, p_stream *stream)
     { stream->type = std_std;
       return TRUE;
     } else
-    { return domain_error(t, "process_stream");
+    { return PL_domain_error("process_stream", t);
     }
   } else if ( PL_is_functor(t, FUNCTOR_pipe1) )
   { stream->term = PL_new_term_ref();
     _PL_get_arg(1, t, stream->term);
+    if ( !PL_is_variable(stream->term) )
+    { for (i = 0; i < info->pipes; i++)
+      { if (PL_compare(info->streams[i].term, t) == 0)
+          break;
+      }
+      if (i == info->pipes)
+        return PL_uninstantiation_error(stream->term);
+    }
     stream->type = std_pipe;
     info->pipes++;
     return TRUE;
   } else
-    return type_error(t, "process_stream");
+    return PL_type_error("process_stream", t);
 }
 
 
@@ -368,7 +342,7 @@ parse_options(term_t options, p_options *info)
     int arity;
 
     if ( !PL_get_name_arity(head, &name, &arity) || arity != 1 )
-      return type_error(head, "option");
+      return PL_type_error("option", head);
     _PL_get_arg(1, head, arg);
 
     if ( name == ATOM_stdin )
@@ -383,8 +357,8 @@ parse_options(term_t options, p_options *info)
     } else if ( name == ATOM_process )
     { info->pid = PL_copy_term_ref(arg);
     } else if ( name == ATOM_detached )
-    { if ( !PL_get_bool(arg, &info->detached) )
-	return type_error(arg, "boolean");
+    { if ( !PL_get_bool_ex(arg, &info->detached) )
+	return FALSE;
     } else if ( name == ATOM_cwd )
     {
 #ifdef __WINDOWS__
@@ -397,17 +371,26 @@ parse_options(term_t options, p_options *info)
 	return FALSE;
 #endif
     } else if ( name == ATOM_window )
-    { if ( !PL_get_bool(arg, &info->window) )
-	return type_error(arg, "boolean");
+    { if ( !PL_get_bool_ex(arg, &info->window) )
+	return FALSE;
     } else if ( name == ATOM_env )
     { if ( !parse_environment(arg, info) )
 	return FALSE;
+    } else if ( name == ATOM_priority )
+    { int tmp;
+
+      if ( !PL_get_integer_ex(arg, &tmp) )
+	return FALSE;
+      if ( tmp < -20 || tmp > 19 )
+	return PL_domain_error("priority_option", arg);
+
+      info->priority = tmp;
     } else
-      return domain_error(head, "process_option");
+      return PL_domain_error("process_option", head);
   }
 
-  if ( !PL_get_nil(tail) )
-    return type_error(tail, "list");
+  if ( !PL_get_nil_ex(tail) )
+    return FALSE;
 
   return TRUE;
 }
@@ -419,7 +402,7 @@ get_exe(term_t exe, p_options *info)
   term_t arg = PL_new_term_ref();
 
   if ( !PL_get_name_arity(exe, &info->exe_name, &arity) )
-    return type_error(exe, "callable");
+    return PL_type_error("callable", exe);
 
   PL_put_atom(arg, info->exe_name);
 
@@ -511,6 +494,7 @@ typedef struct process_context
 #endif
   int   open_mask;			/* Open streams */
   int   pipes[3];			/* stdin/stdout/stderr */
+  atom_t exe_name;			/* exe as atom */
 } process_context;
 
 static int wait_for_process(process_context *pc);
@@ -721,10 +705,10 @@ win_command_line(term_t t, int arity, const wchar_t *exe, wchar_t **cline)
 	return FALSE;
 
       if ( wcslen(av[i].text) != av[i].len )
-	return domain_error(arg, "no_zero_code_atom");
+	return PL_domain_error("no_zero_code_atom", arg);
 
       if ( !set_quote(&av[i]) )
-	return domain_error(arg, "dos_quotable_atom");
+	return PL_domain_error("dos_quotable_atom", arg);
 
       cmdlen += av[i].len+(av[i].quote?2:0)+1;
     }
@@ -898,19 +882,6 @@ wait_for_pid(pid_t pid, term_t code, wait_options *opts)
 
 
 static int
-wait_for_process(process_context *pc)
-{ int rc;
-  ULONG prc;
-
-  rc = wait_process_handle(pc->handle, &prc, INFINITE);
-  CloseHandle(pc->handle);
-  PL_free(pc);
-
-  return rc;
-}
-
-
-static int
 win_wait_success(atom_t exe, HANDLE process)
 { ULONG rc;
 
@@ -932,6 +903,17 @@ win_wait_success(atom_t exe, HANDLE process)
   }
 
   return TRUE;
+}
+
+
+static int
+wait_for_process(process_context *pc)
+{ int rc = win_wait_success(pc->exe_name, pc->handle);
+
+  PL_unregister_atom(pc->exe_name);
+  PL_free(pc);
+
+  return rc;
 }
 
 
@@ -1063,7 +1045,7 @@ do_create_process(p_options *info)
   { case std_pipe:
       si.hStdError = info->streams[2].fd[1];
       SetHandleInformation(info->streams[2].fd[0],
-			   HANDLE_FLAG_INHERIT, FALSE);
+                           HANDLE_FLAG_INHERIT, FALSE);
       break;
     case std_null:
       si.hStdError = open_null_stream(GENERIC_WRITE);
@@ -1083,7 +1065,9 @@ do_create_process(p_options *info)
 		      info->cwd,	/* Directory */
 		      &si,		/* Startup info */
 		      &pi) )		/* Process information */
-  { CloseHandle(pi.hThread);
+  { int rc = TRUE;
+
+    CloseHandle(pi.hThread);
 
     if ( info->pipes > 0 && info->pid == 0 )
     { IOSTREAM *s;
@@ -1092,44 +1076,65 @@ do_create_process(p_options *info)
       DEBUG(Sdprintf("Wait on pipes\n"));
 
       memset(pc, 0, sizeof(*pc));
-      pc->magic  = PROCESS_MAGIC;
-      pc->handle = pi.hProcess;
+      pc->magic    = PROCESS_MAGIC;
+      pc->handle   = pi.hProcess;
+      pc->exe_name = info->exe_name;
+      PL_register_atom(pc->exe_name);
 
       if ( info->streams[0].type == std_pipe )
       { CloseHandle(info->streams[0].fd[0]);
-	s = open_process_pipe(pc, 0, info->streams[0].fd[1]);
-	PL_unify_stream(info->streams[0].term, s);
+	if ( (s = open_process_pipe(pc, 0, info->streams[0].fd[1])) )
+	  rc = PL_unify_stream(info->streams[0].term, s);
+	else
+	  CloseHandle(info->streams[0].fd[0]);
       }
       if ( info->streams[1].type == std_pipe )
       { CloseHandle(info->streams[1].fd[1]);
-	s = open_process_pipe(pc, 1, info->streams[1].fd[0]);
-	PL_unify_stream(info->streams[1].term, s);
+	if ( rc && (s = open_process_pipe(pc, 1, info->streams[1].fd[0])) )
+	  PL_unify_stream(info->streams[1].term, s);
+	else
+	  CloseHandle(info->streams[1].fd[0]);
       }
-      if ( info->streams[2].type == std_pipe )
+      if ( info->streams[2].type == std_pipe &&
+           ( !info->streams[1].term || PL_compare(info->streams[1].term, info->streams[2].term) != 0 ) )
       { CloseHandle(info->streams[2].fd[1]);
-	s = open_process_pipe(pc, 2, info->streams[2].fd[0]);
-	PL_unify_stream(info->streams[2].term, s);
+	if ( rc && (s = open_process_pipe(pc, 2, info->streams[2].fd[0])) )
+	  rc = PL_unify_stream(info->streams[2].term, s);
+	else
+	  CloseHandle(info->streams[2].fd[0]);
       }
 
-      return TRUE;
+      return rc;
     } else if ( info->pipes > 0 )
     { IOSTREAM *s;
 
       if ( info->streams[0].type == std_pipe )
       { CloseHandle(info->streams[0].fd[0]);
-	s = Sopen_handle(info->streams[0].fd[1], "w");
-	PL_unify_stream(info->streams[0].term, s);
+	if ( (s = Sopen_handle(info->streams[0].fd[1], "w")) )
+	  rc = PL_unify_stream(info->streams[0].term, s);
+	else
+	  CloseHandle(info->streams[0].fd[1]);
       }
       if ( info->streams[1].type == std_pipe )
       { CloseHandle(info->streams[1].fd[1]);
-	s = Sopen_handle(info->streams[1].fd[0], "r");
-	PL_unify_stream(info->streams[1].term, s);
+	if ( rc && (s = Sopen_handle(info->streams[1].fd[0], "r")) )
+	  rc = PL_unify_stream(info->streams[1].term, s);
+	else
+	  CloseHandle(info->streams[1].fd[0]);
       }
-      if ( info->streams[2].type == std_pipe )
+      if ( info->streams[2].type == std_pipe &&
+           ( !info->streams[1].term || PL_compare(info->streams[1].term, info->streams[2].term) != 0 ) )
       { CloseHandle(info->streams[2].fd[1]);
-	s = Sopen_handle(info->streams[2].fd[0], "r");
-	PL_unify_stream(info->streams[2].term, s);
+	if ( rc && (s = Sopen_handle(info->streams[2].fd[0], "r")) )
+	  rc = PL_unify_stream(info->streams[2].term, s);
+	else
+	  CloseHandle(info->streams[2].fd[0]);
       }
+    }
+
+    if ( !rc )
+    { Sdprintf("FATAL ERROR: create_process/3\n");
+      PL_halt(1);
     }
 
     if ( info->pid )
@@ -1145,6 +1150,20 @@ do_create_process(p_options *info)
 
 #else /*__WINDOWS__*/
 
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Note the descriptors created using pipe()   are  inherited by the child.
+This implies that if two threads  call process_create/3 using pipes, the
+pipe created for one thread may also  end   up  in  the child created by
+another thread. We  can  avoid  this   using  FD_CLOEXEC  on  the pipe's
+descriptor. Note that we can do that on   both  because the flag will be
+cleared on the duplicated  descriptor  after   dup2  (which  is executed
+before the exec, so the descriptors are still valid).
+
+This can be implemented safely on systems   that  have pipe2(). On other
+systems, safety can be enhanced by   reducing  the window using fcntl(),
+but this needs to be synced with fork() in other threads.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
 static int
 create_pipes(p_options *info)
 { int i;
@@ -1158,10 +1177,26 @@ create_pipes(p_options *info)
       { s->fd[0] = info->streams[1].fd[0];
 	s->fd[1] = info->streams[1].fd[1];
       } else
-      { if ( pipe(s->fd) )
+      {
+#ifdef HAVE_PIPE2
+	if ( pipe2(s->fd, O_CLOEXEC) )
 	{ assert(errno = EMFILE);
 	  return PL_resource_error("open_files");
 	}
+#define PIPE_CLOSED_ON_EXEC 1
+#else
+	int my_side;
+
+	if ( pipe(s->fd) )
+	{ assert(errno = EMFILE);
+	  return PL_resource_error("open_files");
+	}
+	my_side = (i == 0 ? s->fd[1] : s->fd[0]);
+#ifdef F_SETFD
+        fcntl(my_side, F_SETFD, FD_CLOEXEC);
+#define PIPE_CLOSED_ON_EXEC 1
+#endif
+#endif /*HAVE_PIPE2*/
       }
     }
   }
@@ -1223,26 +1258,6 @@ wait_for_pid(pid_t pid, term_t code, wait_options *opts)
 
 
 static int
-wait_for_process(process_context *pc)
-{ for(;;)
-  { int status;
-    pid_t p2;
-
-    if ( (p2=waitpid(pc->pid, &status, 0)) == pc->pid )
-    { PL_free(pc);
-      return TRUE;
-    }
-
-    if ( errno == EINTR && PL_handle_signals() >= 0 )
-      continue;
-
-    PL_free(pc);
-    return FALSE;
-  }
-}
-
-
-static int
 wait_success(atom_t name, pid_t pid)
 { pid_t p2;
 
@@ -1277,9 +1292,35 @@ wait_success(atom_t name, pid_t pid)
 }
 
 
+static int
+wait_for_process(process_context *pc)
+{ int rc = wait_success(pc->exe_name, pc->pid);
+
+  PL_unregister_atom(pc->exe_name);
+  PL_free(pc);
+
+  return rc;
+}
+
+
 #ifndef HAVE_VFORK
 #define vfork fork
 #endif
+
+static int
+close_ok(int fd)
+{ int rc;
+
+  do
+  { rc = close(fd);
+  } while ( rc == -1 && errno == EINTR );
+
+  DEBUG(if ( rc == -1 )
+	  perror("close"));
+
+  return rc;
+}
+
 
 static int
 do_create_process(p_options *info)
@@ -1289,6 +1330,11 @@ do_create_process(p_options *info)
   { int fd;
 
     PL_cleanup_fork();
+
+#if defined(HAVE_SYS_RESOURCE_H) && defined(PRIO_PROCESS)
+    if ( info->priority != 255 )
+      setpriority(PRIO_PROCESS, pid, info->priority);
+#endif
 
     if ( info->detached )
       setsid();
@@ -1304,7 +1350,9 @@ do_create_process(p_options *info)
     switch( info->streams[0].type )
     { case std_pipe:
 	dup2(info->streams[0].fd[0], 0);
+#ifndef PIPE_CLOSED_ON_EXEC
 	close(info->streams[0].fd[1]);
+#endif
 	break;
       case std_null:
 	if ( (fd = open("/dev/null", O_RDONLY)) >= 0 )
@@ -1317,7 +1365,9 @@ do_create_process(p_options *info)
     switch( info->streams[1].type )
     { case std_pipe:
 	dup2(info->streams[1].fd[1], 1);
+#ifndef PIPE_CLOSED_ON_EXEC
         close(info->streams[1].fd[0]);
+#endif
 	break;
       case std_null:
 	if ( (fd = open("/dev/null", O_WRONLY)) >= 0 )
@@ -1330,7 +1380,9 @@ do_create_process(p_options *info)
     switch( info->streams[2].type )
     { case std_pipe:
 	dup2(info->streams[2].fd[1], 2);
+#ifndef PIPE_CLOSED_ON_EXEC
         close(info->streams[2].fd[0]);
+#endif
 	break;
       case std_null:
 	if ( (fd = open("/dev/null", O_WRONLY)) >= 0 )
@@ -1353,8 +1405,10 @@ do_create_process(p_options *info)
 
     return pl_error(NULL, 0, "fork", ERR_ERRNO, errno, "fork", "process", exe);
   } else
-  { if ( info->pipes > 0 && info->pid == 0 )
-    { IOSTREAM *s;
+  { int rc = TRUE;
+
+    if ( info->pipes > 0 && info->pid == 0 )
+    { IOSTREAM *s;			/* no pid(Pid): wait */
       process_context *pc = PL_malloc(sizeof(*pc));
 
       DEBUG(Sdprintf("Wait on pipes\n"));
@@ -1362,43 +1416,61 @@ do_create_process(p_options *info)
       memset(pc, 0, sizeof(*pc));
       pc->magic = PROCESS_MAGIC;
       pc->pid = pid;
+      pc->exe_name = info->exe_name;
+      PL_register_atom(pc->exe_name);
 
       if ( info->streams[0].type == std_pipe )
-      { close(info->streams[0].fd[0]);
-	s = open_process_pipe(pc, 0, info->streams[0].fd[1]);
-	PL_unify_stream(info->streams[0].term, s);
+      { close_ok(info->streams[0].fd[0]);
+	if ( (s = open_process_pipe(pc, 0, info->streams[0].fd[1])) )
+	  rc = PL_unify_stream(info->streams[0].term, s);
+	else
+	  close_ok(info->streams[0].fd[1]);
       }
       if ( info->streams[1].type == std_pipe )
-      { close(info->streams[1].fd[1]);
-	s = open_process_pipe(pc, 1, info->streams[1].fd[0]);
-	PL_unify_stream(info->streams[1].term, s);
+      { close_ok(info->streams[1].fd[1]);
+	if ( rc && (s = open_process_pipe(pc, 1, info->streams[1].fd[0])) )
+	  rc = PL_unify_stream(info->streams[1].term, s);
+	else
+	  close_ok(info->streams[1].fd[0]);
       }
-      if ( info->streams[2].type == std_pipe )
-      { close(info->streams[2].fd[1]);
-	s = open_process_pipe(pc, 2, info->streams[2].fd[0]);
-	PL_unify_stream(info->streams[2].term, s);
+      if ( info->streams[2].type == std_pipe &&
+           ( !info->streams[1].term || PL_compare(info->streams[1].term, info->streams[2].term) != 0 ) )
+      { close_ok(info->streams[2].fd[1]);
+	if ( rc && (s = open_process_pipe(pc, 2, info->streams[2].fd[0])) )
+	  rc = PL_unify_stream(info->streams[2].term, s);
+	else
+	  close_ok(info->streams[2].fd[0]);
       }
 
-      return TRUE;
+      return rc;
     } else if ( info->pipes > 0 )
     { IOSTREAM *s;
 
       if ( info->streams[0].type == std_pipe )
-      { close(info->streams[0].fd[0]);
-	s = Sfdopen(info->streams[0].fd[1], "w");
-	PL_unify_stream(info->streams[0].term, s);
+      { close_ok(info->streams[0].fd[0]);
+	if ( (s = Sfdopen(info->streams[0].fd[1], "w")) )
+	  rc = PL_unify_stream(info->streams[0].term, s);
+	else
+	  close_ok(info->streams[0].fd[1]);
       }
       if ( info->streams[1].type == std_pipe )
-      { close(info->streams[1].fd[1]);
-	s = Sfdopen(info->streams[1].fd[0], "r");
-	PL_unify_stream(info->streams[1].term, s);
+      { close_ok(info->streams[1].fd[1]);
+	if ( rc && (s = Sfdopen(info->streams[1].fd[0], "r")) )
+	  rc = PL_unify_stream(info->streams[1].term, s);
+	else
+	  close_ok(info->streams[1].fd[0]);
       }
-      if ( info->streams[2].type == std_pipe )
-      { close(info->streams[2].fd[1]);
-	s = Sfdopen(info->streams[2].fd[0], "r");
-	PL_unify_stream(info->streams[2].term, s);
+      if ( info->streams[2].type == std_pipe &&
+           ( !info->streams[1].term || PL_compare(info->streams[1].term, info->streams[2].term) != 0 ) )
+      { close_ok(info->streams[2].fd[1]);
+	if ( rc && (s = Sfdopen(info->streams[2].fd[0], "r")) )
+	  PL_unify_stream(info->streams[2].term, s);
+	else
+	  close_ok(info->streams[2].fd[0]);
       }
     }
+
+    assert(rc);				/* What else? */
 
     if ( info->pid )
       return PL_unify_integer(info->pid, pid);
@@ -1413,6 +1485,35 @@ do_create_process(p_options *info)
 		 /*******************************
 		 *	      BINDING		*
 		 *******************************/
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Running out of resources after we created  the process is really hard to
+handle gracefully, so we first make  a   list  to  ensure we have enough
+resources to bind the return value.
+
+Ideally, we need a call to ask for sufficient resources.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+static int
+ensure_stack_resources(int count)
+{ fid_t fid = PL_open_foreign_frame();
+  term_t list = PL_new_term_ref();
+  term_t tail = PL_copy_term_ref(list);
+
+  while ( count-- > 0 )
+  { term_t head;
+
+    if ( !(head = PL_new_term_ref()) ||
+	 !PL_unify_list(tail, head, tail) )
+    { PL_close_foreign_frame(fid);
+      return FALSE;
+    }
+  }
+
+  PL_discard_foreign_frame(fid);
+  return TRUE;
+}
+
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Basic process creation interface takes
@@ -1430,7 +1531,12 @@ process_create(term_t exe, term_t options)
 { p_options info;
   int rc = FALSE;
 
+  if ( !ensure_stack_resources(10) )	/* max 3 stream structures */
+    return FALSE;
+
   memset(&info, 0, sizeof(info));
+
+  info.priority = 255;			/* zero is a valid priority */
 
   if ( !get_exe(exe, &info) )
     goto out;
@@ -1452,10 +1558,10 @@ static int
 get_pid(term_t pid, pid_t *p)
 { int n;
 
-  if ( !PL_get_integer(pid, &n) )
-    return type_error(pid, "integer");
+  if ( !PL_get_integer_ex(pid, &n) )
+    return FALSE;
   if ( n < 0 )
-    return domain_error(pid, "not_less_than_zero");
+    return PL_domain_error("not_less_than_zero", pid);
 
   *p = n;
   return TRUE;
@@ -1479,26 +1585,26 @@ process_wait(term_t pid, term_t code, term_t options)
     int arity;
 
     if ( !PL_get_name_arity(head, &name, &arity) || arity != 1 )
-      return type_error(head, "option");
+      return PL_type_error("option", head);
     _PL_get_arg(1, head, arg);
     if ( name == ATOM_timeout )
     { atom_t a;
 
       if ( !(PL_get_atom(arg, &a) && a == ATOM_infinite) )
       { if ( !PL_get_float(arg, &opts.timeout) )
-	  return type_error(arg, "timeout");
+	  return PL_type_error("timeout", arg);
 	opts.has_timeout = TRUE;
       }
     } else if ( name == ATOM_release )
-    { if ( !PL_get_bool(arg, &opts.release) )
-	return type_error(arg, "boolean");
+    { if ( !PL_get_bool_ex(arg, &opts.release) )
+	return FALSE;
       if ( opts.release == FALSE )
-	return domain_error(arg, "true");
+	return PL_domain_error("true", arg);
     } else
-      return domain_error(head, "process_wait_option");
+      return PL_domain_error("process_wait_option", head);
   }
-  if ( !PL_get_nil(tail) )
-    return type_error(tail, "list");
+  if ( !PL_get_nil_ex(tail) )
+    return FALSE;
 
   return wait_for_pid(p, code, &opts);
 }
@@ -1565,6 +1671,7 @@ install_process()
   MKATOM(detached);
   MKATOM(cwd);
   MKATOM(env);
+  MKATOM(priority);
   MKATOM(window);
   MKATOM(timeout);
   MKATOM(release);
@@ -1572,8 +1679,6 @@ install_process()
 
   MKFUNCTOR(pipe, 1);
   MKFUNCTOR(error, 2);
-  MKFUNCTOR(type_error, 2);
-  MKFUNCTOR(domain_error, 2);
   MKFUNCTOR(process_error, 2);
   MKFUNCTOR(system_error, 2);
   MKFUNCTOR(exit, 1);

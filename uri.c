@@ -184,8 +184,10 @@ fill_flags()
   }
 }
 
-#define no_escape(c, f) ((c < 128) && (charflags[(int)c] & (f)))
-#define iri_no_escape(c, f) ((c > 128) || (charflags[(int)c] & (f)))
+#define no_escape(c, f) \
+	(((c) < 128) && (charflags[(int)c] & (f)))
+#define iri_no_escape(c, f) \
+	(((c) > 128) || (c) == '%' || (charflags[(int)c] & (f)))
 
 
 /* hex(const pl_wchar_t *in, int digits, int *value)
@@ -530,8 +532,8 @@ add_normalized_range_charbuf(charbuf *cb, const range *r, int iri, int flags)
 */
 
 static int
-add_range_charbuf(charbuf *cb, const range *r, int iri, int flags)
-{ if ( range_has_escape(r, flags) )
+add_range_charbuf(charbuf *cb, const range *r, int unesc, int iri, int flags)
+{ if ( unesc && range_has_escape(r, flags) )
   { return add_normalized_range_charbuf(cb, r, iri, flags);
   } else if ( range_is_unreserved(r, iri, flags) )
   { add_nchars_charbuf(cb, r->end-r->start, r->start);
@@ -551,7 +553,8 @@ add_range_charbuf(charbuf *cb, const range *r, int iri, int flags)
 }
 
 
-/* add_lwr_range_charbuf(charbuf *cb, const range *r, int iri, int flags)
+/* add_lwr_range_charbuf(charbuf *cb, const range *r,
+			 int unesc, int iri, int flags)
 
    Add a range of characters while normalizing %-encoding and
    mapping all characters to lowercase.
@@ -561,13 +564,13 @@ add_range_charbuf(charbuf *cb, const range *r, int iri, int flags)
 
 
 static int
-add_lwr_range_charbuf(charbuf *cb, const range *r, int iri, int flags)
+add_lwr_range_charbuf(charbuf *cb, const range *r, int unesc, int iri, int flags)
 { const pl_wchar_t *s = r->start;
 
   while(s<r->end)
   { int c;
 
-    if ( *s == '%' )
+    if ( unesc && *s == '%' )
     { const pl_wchar_t *e;
 
       if ( (e=get_encoded_utf8(s, &c)) )
@@ -1124,17 +1127,18 @@ uri_authority_components(term_t Authority, term_t components)
 		 *******************************/
 
 static int
-normalize_in_charbuf(charbuf *cb, uri_component_ranges *ranges, int iri)
+normalize_in_charbuf(charbuf *cb, uri_component_ranges *ranges,
+		     int unesc, int iri)
 { fill_flags();
 
   if ( ranges->scheme.start )
-  { add_lwr_range_charbuf(cb, &ranges->scheme, iri, ESC_SCHEME);
+  { add_lwr_range_charbuf(cb, &ranges->scheme, unesc, iri, ESC_SCHEME);
     add_charbuf(cb, ':');
   }
   if ( ranges->authority.start )
   { add_charbuf(cb, '/');
     add_charbuf(cb, '/');
-    add_lwr_range_charbuf(cb, &ranges->authority, iri, ESC_AUTH);
+    add_lwr_range_charbuf(cb, &ranges->authority, unesc, iri, ESC_AUTH);
   }
   if ( ranges->path.end > ranges->path.start )
   { charbuf pb;
@@ -1142,7 +1146,7 @@ normalize_in_charbuf(charbuf *cb, uri_component_ranges *ranges, int iri)
     size_t len;
 
     init_charbuf(&pb);
-    add_range_charbuf(&pb, &ranges->path, iri, ESC_PATH);
+    add_range_charbuf(&pb, &ranges->path, unesc, iri, ESC_PATH);
     init_charbuf_at_size(&path, pb.here-pb.base);
     len = removed_dot_segments(pb.here-pb.base, pb.base, path.base);
     add_nchars_charbuf(cb, len, path.base);
@@ -1151,11 +1155,11 @@ normalize_in_charbuf(charbuf *cb, uri_component_ranges *ranges, int iri)
   }
   if ( ranges->query.start )
   { add_charbuf(cb, '?');
-    add_range_charbuf(cb, &ranges->query, iri, ESC_QUERY);
+    add_range_charbuf(cb, &ranges->query, unesc, iri, ESC_QUERY);
   }
   if ( ranges->fragment.start )
   { add_charbuf(cb, '#');
-    add_range_charbuf(cb, &ranges->fragment, iri, ESC_QVALUE);
+    add_range_charbuf(cb, &ranges->fragment, unesc, iri, ESC_QVALUE);
   }
 
   return TRUE;
@@ -1163,7 +1167,7 @@ normalize_in_charbuf(charbuf *cb, uri_component_ranges *ranges, int iri)
 
 
 static foreign_t
-normalized(term_t URI, term_t CannonicalURI, int iri)
+normalized(term_t URI, term_t CannonicalURI, int unesc, int iri)
 { pl_wchar_t *s;
   size_t len;
 
@@ -1175,7 +1179,7 @@ normalized(term_t URI, term_t CannonicalURI, int iri)
 
     parse_uri(&ranges, len, s);
     init_charbuf(&b);
-    normalize_in_charbuf(&b, &ranges, iri);
+    normalize_in_charbuf(&b, &ranges, unesc, iri);
 
     rc = PL_unify_wchars(CannonicalURI, PL_ATOM, b.here-b.base, b.base);
     free_charbuf(&b);
@@ -1192,7 +1196,16 @@ normalized(term_t URI, term_t CannonicalURI, int iri)
 
 static foreign_t
 uri_normalized(term_t URI, term_t CannonicalURI)
-{ return normalized(URI, CannonicalURI, FALSE);
+{ return normalized(URI, CannonicalURI, TRUE, FALSE);
+}
+
+
+/** iri_normalized(+IRI, -CannonicalIRI)
+*/
+
+static foreign_t
+iri_normalized(term_t IRI, term_t CannonicalIRI)
+{ return normalized(IRI, CannonicalIRI, FALSE, TRUE);
 }
 
 
@@ -1200,8 +1213,8 @@ uri_normalized(term_t URI, term_t CannonicalURI)
 */
 
 static foreign_t
-uri_normalized_iri(term_t URI, term_t CannonicalURI)
-{ return normalized(URI, CannonicalURI, TRUE);
+uri_normalized_iri(term_t URI, term_t CannonicalIRI)
+{ return normalized(URI, CannonicalIRI, TRUE, TRUE);
 }
 
 
@@ -1288,8 +1301,10 @@ base_ranges(term_t t)
       if ( base->atom )
       { PL_unregister_atom(base->atom);
 	PL_free(base->text);
+	base->atom = 0;
+	base->text = NULL;
       }
-      if ( !PL_get_wchars(t, &len, &s, CVT_ATOM|BUF_MALLOC) )
+      if ( !PL_get_wchars(t, &len, &s, CVT_ATOM|BUF_MALLOC|CVT_EXCEPTION) )
 	return NULL;
       base->atom = a;
       PL_register_atom(a);
@@ -1306,7 +1321,7 @@ base_ranges(term_t t)
 
 
 static foreign_t
-resolve(term_t Rel, term_t Base, term_t URI, int normalize, int iri)
+resolve(term_t Rel, term_t Base, term_t URI, int unesc, int normalize, int iri)
 { pl_wchar_t *s;
   size_t slen;
   uri_component_ranges s_ranges, t_ranges;
@@ -1370,7 +1385,7 @@ resolve(term_t Rel, term_t Base, term_t URI, int normalize, int iri)
   init_charbuf(&out);			/* output buffer */
 
   if ( normalize )
-  { normalize_in_charbuf(&out, &t_ranges, iri);
+  { normalize_in_charbuf(&out, &t_ranges, unesc, iri);
   } else
   { init_charbuf_at_size(&path, t_ranges.path.end - t_ranges.path.start);
     len = removed_dot_segments(t_ranges.path.end - t_ranges.path.start,
@@ -1394,7 +1409,7 @@ resolve(term_t Rel, term_t Base, term_t URI, int normalize, int iri)
 
 static foreign_t
 uri_resolve(term_t Rel, term_t Base, term_t URI)
-{ return resolve(Rel, Base, URI, FALSE, FALSE);
+{ return resolve(Rel, Base, URI, TRUE, FALSE, FALSE);
 }
 
 
@@ -1403,7 +1418,15 @@ uri_resolve(term_t Rel, term_t Base, term_t URI)
 
 static foreign_t
 uri_normalized3(term_t Rel, term_t Base, term_t URI)
-{ return resolve(Rel, Base, URI, TRUE, FALSE);
+{ return resolve(Rel, Base, URI, TRUE, TRUE, FALSE);
+}
+
+/** iri_normalized(+Relative, +Base, -Absolute) is det.
+*/
+
+static foreign_t
+iri_normalized3(term_t Rel, term_t Base, term_t IRI)
+{ return resolve(Rel, Base, IRI, FALSE, TRUE, TRUE);
 }
 
 
@@ -1412,7 +1435,7 @@ uri_normalized3(term_t Rel, term_t Base, term_t URI)
 
 static foreign_t
 uri_normalized_iri3(term_t Rel, term_t Base, term_t IRI)
-{ return resolve(Rel, Base, IRI, TRUE, TRUE);
+{ return resolve(Rel, Base, IRI, TRUE, TRUE, TRUE);
 }
 
 
@@ -1589,9 +1612,11 @@ install_uri()
   PL_register_foreign("uri_components",	      2, uri_components,       0);
   PL_register_foreign("uri_is_global",	      1, uri_is_global,	       0);
   PL_register_foreign("uri_normalized",	      2, uri_normalized,       0);
+  PL_register_foreign("iri_normalized",	      2, iri_normalized,       0);
   PL_register_foreign("uri_normalized_iri",   2, uri_normalized_iri,   0);
   PL_register_foreign("uri_resolve",	      3, uri_resolve,	       0);
   PL_register_foreign("uri_normalized",	      3, uri_normalized3,      0);
+  PL_register_foreign("iri_normalized",	      3, iri_normalized3,      0);
   PL_register_foreign("uri_normalized_iri",   3, uri_normalized_iri3,  0);
   PL_register_foreign("uri_query_components", 2, uri_query_components, 0);
   PL_register_foreign("uri_authority_components",

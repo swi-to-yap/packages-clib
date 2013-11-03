@@ -33,8 +33,10 @@
 	    uri_data/4,			% +Field, +Components, -Data, -New
 
 	    uri_normalized/2,		% +URI, -NormalizedURI
+	    iri_normalized/2,		% +IRI, -NormalizedIRI
 	    uri_normalized_iri/2,	% +URI, -NormalizedIRI
 	    uri_normalized/3,		% +URI, +Base, -NormalizedURI
+	    iri_normalized/3,		% +IRI, +Base, -NormalizedIRI
 	    uri_normalized_iri/3,	% +URI, +Base, -NormalizedIRI
 	    uri_resolve/3,		% +URI, +Base, -AbsURI
 	    uri_is_global/1,		% +URI
@@ -121,6 +123,17 @@ uri_data(fragment,  uri_components(S, A, P, Q, _), F,
 %	    * 6.2.2.2. Percent-Encoding Normalization
 %	    * 6.2.2.3. Path Segment Normalization
 
+%%	iri_normalized(+IRI, -NormalizedIRI) is det.
+%
+%	NormalizedIRI is the normalized form   of  IRI. Normalization is
+%	syntactic and involves the following steps:
+%
+%	    * 6.2.2.1. Case Normalization
+%	    * 6.2.2.3. Path Segment Normalization
+%
+%	@see	This is similar to uri_normalized/2, but does not do
+%		normalization of %-escapes.
+
 %%	uri_normalized_iri(+URI, -NormalizedIRI) is det.
 %
 %	As uri_normalized/2, but percent-encoding is translated into IRI
@@ -161,6 +174,12 @@ uri_data(fragment,  uri_components(S, A, P, Q, _), F,
 %		uri_resolve(URI, Base, GlobalURI),
 %		uri_normalized(GlobalURI, NormalizedGlobalURI).
 %	==
+
+%%	iri_normalized(+IRI, +Base, -NormalizedGlobalIRI) is det.
+%
+%	NormalizedGlobalIRI is the normalized  global   version  of IRI.
+%	This is similar to uri_normalized/3, but   does  not do %-escape
+%	normalization.
 
 %%	uri_normalized_iri(+URI, +Base, -NormalizedGlobalIRI) is det.
 %

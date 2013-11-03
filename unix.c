@@ -41,7 +41,7 @@
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
 #endif
-#ifdef HAVE_CRT_EXTERNS_H 
+#ifdef HAVE_CRT_EXTERNS_H
 #include <crt_externs.h>
 #endif
 
@@ -81,12 +81,15 @@ pl_fork(term_t a0)
   flush_stream("user_output");		/* general call to flush all IO? */
 
   if ( (pid = fork()) < 0 )
-    return PL_warning("fork/1: failed: %s", strerror(errno));
+    return PL_resource_error("memory");
 
   if ( pid > 0 )
-    return PL_unify_integer(a0, pid);
-  else
+  { return PL_unify_integer(a0, pid);
+  } else
+  { PL_set_prolog_flag("pid", PL_INTEGER, (intptr_t)getpid());
+
     return PL_unify_atom_chars(a0, "child");
+  }
 }
 
 
@@ -134,7 +137,27 @@ pl_exec(term_t cmd)
 static foreign_t
 pl_wait(term_t Pid, term_t Status)
 { int status;
-  pid_t pid = wait(&status);
+  pid_t pid = -1;
+  int pid_i;
+
+  if ( PL_is_variable(Pid) )
+  { pid = -1;
+  } else if ( PL_get_integer_ex(Pid, &pid_i) )
+  { if ( pid_i <= 0 )
+      return PL_domain_error("process_id", Pid);
+    pid = pid_i;
+  } else
+    return FALSE;
+
+  for(;;)
+  { pid = waitpid(pid, &status, 0);
+    if ( pid == -1 && errno == EINTR )
+    { if ( PL_handle_signals() < 0 )
+	return FALSE;
+    } else
+    { break;
+    }
+  }
 
   if ( pid == -1 )
     return pl_error("wait", 2, NULL, ERR_ERRNO, errno, "wait", "process", Pid);
@@ -283,8 +306,7 @@ pl_environ(term_t l)
 		 *	    DEAMON IO		*
 		 *******************************/
 
-static atom_t error_file;		/* file for output */
-static int    error_fd;			/* and its fd */
+static IOSTREAM *log_stream = NULL;		/* Write log output here */
 
 static ssize_t
 read_eof(void *handle, char *buf, size_t count)
@@ -294,12 +316,10 @@ read_eof(void *handle, char *buf, size_t count)
 
 static ssize_t
 write_null(void *handle, char *buf, size_t count)
-{ if ( error_fd )
-  { if ( error_fd >= 0 )
-      return write(error_fd, buf, count);
-  } else if ( error_file )
-  { error_fd = open(PL_atom_chars(error_file), O_WRONLY|O_CREAT|O_TRUNC, 0644);
-    return write_null(handle, buf, count);
+{ if ( log_stream )
+  { Slock(log_stream);
+    Sfwrite(buf, count, sizeof(char), log_stream);
+    Sunlock(log_stream);
   }
 
   return count;
@@ -332,41 +352,48 @@ close_underlying_fd(IOSTREAM *s)
 { if ( s )
   { int fd;
 
-    if ( (fd = Sfileno(s)) >= 0 )
-      close(fd);
+    if ( (fd = Sfileno(s)) >= 0 && (s->flags & SIO_ISATTY) )
+    { close(fd);
 
-    s->functions = &dummy;
-    s->flags &= ~SIO_FILE;		/* no longer a file */
-    s->flags |= SIO_LBUF;		/* do line-buffering */
+      s->functions = &dummy;
+      s->flags &= ~SIO_FILE|SIO_ISATTY;	/* no longer a file */
+      s->flags |= SIO_LBUF;		/* do line-buffering */
+    }
   }
 }
 
 
-static foreign_t
-pl_detach_IO()
-{ char buf[100];
-
-  sprintf(buf, "/tmp/pl-out.%d", (int)getpid());
-  error_file = PL_new_atom(buf);
-
-  close_underlying_fd(Serror);
-  close_underlying_fd(Soutput);
-  close_underlying_fd(Sinput);
-  close_underlying_fd(name_to_stream("user_input"));
-  close_underlying_fd(name_to_stream("user_output"));
-  close_underlying_fd(name_to_stream("user_error"));
-
+static void
+detach_process(void)
+{
 #ifdef HAVE_SETSID
   setsid();
 #else
-{ int fd;
+  int fd;
 
   if ( (fd = open("/dev/tty", 2)) )
   { ioctl(fd, TIOCNOTTY, NULL);		/* detach from controlling tty */
     close(fd);
   }
-}
 #endif
+}
+
+static foreign_t
+pl_detach_IO(term_t stream)
+{ if ( !log_stream )
+  { IOSTREAM *s;
+
+    if ( !PL_get_stream_handle(stream, &s) )
+      return FALSE;
+    log_stream = s;
+    PL_release_stream(s);
+
+    close_underlying_fd(Serror);
+    close_underlying_fd(Soutput);
+    close_underlying_fd(Sinput);
+
+    detach_process();
+  }
 
   return TRUE;
 }
@@ -374,13 +401,13 @@ pl_detach_IO()
 
 install_t
 install_unix()
-{ PL_register_foreign("fork",      1, pl_fork, 0);
+{ PL_register_foreign("fork_",     1, pl_fork, 0);
   PL_register_foreign("exec",      1, pl_exec, 0);
   PL_register_foreign("wait",      2, pl_wait, 0);
   PL_register_foreign("kill",      2, pl_kill, 0);
   PL_register_foreign("pipe",      2, pl_pipe, 0);
   PL_register_foreign("dup",       2, pl_dup, 0);
-  PL_register_foreign("detach_IO", 0, pl_detach_IO, 0);
+  PL_register_foreign("detach_IO", 1, pl_detach_IO, 0);
   PL_register_foreign("environ",   1, pl_environ, 0);
 }
 

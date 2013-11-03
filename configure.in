@@ -11,6 +11,7 @@ AC_SUBST(CLIB_PLTARGETS)
 AC_SUBST(CLIB_NETLIBS)
 AC_SUBST(CLIB_CRYPTLIBS)
 AC_SUBST(CLIB_CRYPTOBJ)
+AC_SUBST(CLIB_LIBUUID)
 
 m4_ifdef([HAS_TOP],[m4_ignore],[   
 m4_include([../ac_swi_c.m4])
@@ -41,6 +42,44 @@ AC_CHECK_FUNC(gethostent, [], [
                       AC_DEFINE(HAVE_LIBNSL, 1,
                       "Define if you have the nsl library (-lnsl)."))])
 
+dnl Configure UUID library.  We use the OSSP UUID library, but it seems
+dnl to be installed in various places.
+
+if test x"$LIBUUID" = "x"; then
+AC_CHECK_LIB(ossp-uuid, uuid_create,
+	     [ LIBUUID=-lossp-uuid
+	     ])
+fi
+if test x"$LIBUUID" = "x"; then
+AC_CHECK_LIB(uuid, uuid_create,
+	     [ LIBUUID=-luuid
+	     ])
+fi
+if test x"$LIBUUID" = "x"; then
+  AC_MSG_WARN([ Cannot find libossp-uuid or libuuid -- dropping uuid.pl])
+else
+  if test x"$UUID_H" = "x"; then
+  AC_CHECK_HEADER(ossp/uuid.h,
+		  [ UUID_H=ossp/uuid.h ],
+		  [],
+		  [/*first*/])
+  fi
+  if test x"$UUID_H" = "x"; then
+  AC_CHECK_HEADER(uuid.h,
+		  [ UUID_H=uuid.h ],
+		  [],
+		  [/*first*/])
+  fi
+  if test x"$UUID_H" = "x"; then
+    AC_MSG_WARN([ Cannot find uuid.h -- dropping uuid.pl])
+  else
+    AC_DEFINE_UNQUOTED([UUID_H], [<$UUID_H>],
+	      [ Define to name of the UUID header file. ])
+    TARGETS="$TARGETS uuid.$SO"
+  fi
+fi
+
+
 oldlibs="$LIBS"
 AC_CHECK_LIB(crypt, crypt)
 CLIB_CRYPTLIBS="$LIBS"
@@ -50,6 +89,10 @@ AC_CHECK_FUNC(crypt,
 AC_DEFINE(HAVE_CRYPT, 1,
 	  "Define if you have the crypt function.")
 LIBS="$oldlibs"
+
+AC_CHECK_FUNC(syslog,
+	      [ TARGETS="$TARGETS syslog.$SO" ],
+	      AC_MSG_WARN([Cannot find syslog"()" -- dropping syslog.pl]))
 
 AC_MSG_CHECKING("Configuring MIME libraries")
 case "$CC" in
@@ -97,7 +140,7 @@ AC_TRY_COMPILE(
    AC_MSG_RESULT(no))
 
 AC_CHECK_HEADERS(malloc.h alloca.h unistd.h sys/time.h fcntl.h utime.h)
-AC_CHECK_HEADERS(execinfo.h sys/resource.h crypt.h)
+AC_CHECK_HEADERS(execinfo.h sys/resource.h crypt.h syslog.h)
 AC_CHECK_HEADERS(sys/types.h sys/wait.h sys/stat.h)
 AC_CHECK_HEADERS(netinet/tcp.h crt_externs.h)
 
@@ -105,6 +148,7 @@ AC_CHECK_SIZEOF(long, 4)
 AC_CHECK_SIZEOF(long long, 8)
 
 AC_CHECK_FUNCS(setsid strerror utime getrlimit strcasestr vfork _NSGetEnviron)
+AC_CHECK_FUNCS(pipe2)
 AC_CHECK_TYPES(socklen_t, [], [],
 [
 #include <sys/types.h>
@@ -138,12 +182,19 @@ AC_ARG_WITH(time, [  --without-time		  Exclude alarm library],
 if test "$ac_cv_func_getrlimit" = "yes"; then
   CLIB_TARGETS="$CLIB_TARGETS rlimit.$SO"
 else
-  "WARNING: no getrlimit(); dropping rlimit.pl from targets"
+  AC_MSG_WARN([Cannot find getrlimit"()" -- dropping rlimit.pl])
 fi
 
+<<<<<<< HEAD
 CLIB_PLTARGETS=`echo $CLIB_TARGETS | sed -e "s/\.$SO/.pl/g" -e "s/files.pl/filesex.pl/"`
 if echo "$PL_CLIB_TARGETS" | grep socket.pl 2>&1 >/dev/null; then
   CLIB_PLTARGETS="$PLCLIB_TARGETS streampool.pl"
+=======
+
+PLTARGETS=`echo $TARGETS | sed -e "s/\.$SO/.pl/g" -e "s/files.pl/filesex.pl/"`
+if echo "$PLTARGETS" | grep socket.pl 2>&1 >/dev/null; then
+  PLTARGETS="$PLTARGETS streampool.pl"
+>>>>>>> a3b4bfa7a499bbdf246bdc6c66c42e6a72eecf82
 fi
 
 m4_ifdef([HAS_TOP],[m4_ignore],[   

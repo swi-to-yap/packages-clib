@@ -184,13 +184,15 @@ copy_file(From, To) :-
 			   close(Out)).
 
 copy_from(File, Stream) :-
-	setup_call_cleanup(open(File, read, In, [type(binary)]),
-			   copy_stream_data(In, Stream),
-			   close(In)).
+	setup_call_cleanup(
+	    open(File, read, In, [type(binary)]),
+	    copy_stream_data(In, Stream),
+	    close(In)).
 
 destination_file(Dir, File, Dest) :-
 	exists_directory(Dir), !,
-	atomic_list_concat([Dir, File], /, Dest).
+	file_base_name(File, Base),
+	directory_file_path(Dir, Base, Dest).
 destination_file(Dest, _, Dest).
 
 
@@ -220,7 +222,10 @@ make_directory_path_2(Dir) :-
 %	From is created.
 
 copy_directory(From, To) :-
-	make_directory(To),
+	(   exists_directory(To)
+	->  true
+	;   make_directory(To)
+	),
 	directory_files(From, Entries),
 	maplist(copy_directory_content(From, To), Entries).
 

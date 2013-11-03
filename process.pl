@@ -1,11 +1,10 @@
-/*  $Id$
-
-    Part of SWI-Prolog
+/*  Part of SWI-Prolog
 
     Author:        Jan Wielemaker
-    E-mail:        J.Wielemak@uva.nl
+    E-mail:        J.Wielemak@vu.nl
     WWW:           http://www.swi-prolog.org
-    Copyright (C): 2008-2009, University of Amsterdam
+    Copyright (C): 2008-2013, University of Amsterdam
+			      VU University Amsterdam
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
@@ -47,6 +46,18 @@
 :- use_module(library(maplist)).
 
 :- use_foreign_library(foreign(process)).
+
+:- predicate_options(process_create/3, 3,
+		     [ stdin(any),
+		       stdout(any),
+		       stderr(any),
+		       cwd(atom),
+		       env(list(any)),
+		       priority(+integer),
+		       process(-integer),
+		       detached(+boolean),
+		       window(+boolean)
+		     ]).
 
 /** <module> Create processes and redirect I/O
 
@@ -150,6 +161,13 @@ following finds the executable for =ls=:
 %           PID to a job you create yourself.
 %	    * window(+Bool)
 %	    If =true=, create a window for the process (Windows only)
+%	    * priority(+Priority)
+%	    In Unix: specifies the process priority for the newly
+%	    created process. Priority must be an integer between -20
+%	    and 19. Positive values are nicer to others, and negative
+%	    values are less so. The default is zero. Users are free to
+%	    lower their own priority. Only the super-user may _raise_ it
+%	    to less-than zero.
 %
 %	If the user specifies the process(-PID)   option, he *must* call
 %	process_wait/2 to reclaim the process.  Without this option, the

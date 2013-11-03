@@ -1,11 +1,10 @@
-/*  $Id$
-
-    Part of SWI-Prolog
+/*  Part of SWI-Prolog
 
     Author:        Jan Wielemaker
-    E-mail:        wielemak@science.uva.nl
+    E-mail:        J.Wielemaker@vu.nl
     WWW:           http://www.swi-prolog.org
-    Copyright (C): 1985-2007, University of Amsterdam
+    Copyright (C): 1985-2013, University of Amsterdam
+			      VU University Amsterdam
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -351,19 +350,31 @@ request_name(nbio_request request)
 }
 
 static char *
+sepstrcatskip(char *buf, char *dest, char *src)
+{ if ( dest != buf )
+  { *dest++ = '|';
+    *dest = '\0';
+  }
+  strcat(dest, src);
+  dest += strlen(dest);
+
+  return dest;
+}
+
+static char *
 event_name(int ev)
 { char buf[256];
   char *o = buf;
 
   o[0] = '\0';
-  if ( (ev & FD_READ) )    strcat(o, "|FD_READ");
-  if ( (ev & FD_WRITE) )   strcat(o, "|FD_WRITE");
-  if ( (ev & FD_ACCEPT) )  strcat(o, "|FD_ACCEPT");
-  if ( (ev & FD_CONNECT) ) strcat(o, "|FD_CONNECT");
-  if ( (ev & FD_CLOSE) )   strcat(o, "|FD_CLOSE");
-  if ( (ev & FD_OOB) )	   strcat(o, "|FD_OOB");
+  if ( (ev & FD_READ) )    o=sepstrcatskip(buf, o, "FD_READ");
+  if ( (ev & FD_WRITE) )   o=sepstrcatskip(buf, o, "FD_WRITE");
+  if ( (ev & FD_ACCEPT) )  o=sepstrcatskip(buf, o, "FD_ACCEPT");
+  if ( (ev & FD_CONNECT) ) o=sepstrcatskip(buf, o, "FD_CONNECT");
+  if ( (ev & FD_CLOSE) )   o=sepstrcatskip(buf, o, "FD_CLOSE");
+  if ( (ev & FD_OOB) )	   o=sepstrcatskip(buf, o, "FD_OOB");
   if ( (ev & ~(FD_READ|FD_WRITE|FD_ACCEPT|FD_CONNECT|FD_CLOSE)) )
-    strcat(o, "|FD_???");
+    sepstrcatskip(buf, o, "FD_???");
 
   return strdup(buf);
 }
@@ -435,7 +446,7 @@ doneRequest(plsocket *s)
   }
 
   if ( s->thread )
-  { DEBUG(2, Sdprintf("doneRequest(): posting %d\n", s->thread));
+  { DEBUG(2, Sdprintf("doneRequest(%d): posting %d\n", s->id, s->thread));
     PostThreadMessage(s->thread, WM_DONE, 0, (WPARAM)s);
   }
 
@@ -496,7 +507,7 @@ nbio_wait(nbio_sock_t socket, nbio_request request)
 
   SendMessage(State()->hwnd, WM_REQUEST, 1, (LPARAM)&s);
 
-  DEBUG(2, Sdprintf("[%d] (%ld): Waiting ...",
+  DEBUG(2, Sdprintf("[%d] (%ld): Waiting ... ",
 		    PL_thread_self(), s->thread));
 
   for(;;)
@@ -650,7 +661,7 @@ placeRequest(plsocket *s, nbio_request request)
   UNLOCK_SOCKET(s);
 
   SendMessage(State()->hwnd, WM_REQUEST, 1, (LPARAM)&s);
-  DEBUG(2, Sdprintf("%d (%ld): Placed %s request for %d\n",
+  DEBUG(2, Sdprintf("[%d] (%ld): Placed %s request for %d\n",
 		    PL_thread_self(), s->thread,
 		    request_name(request), (int)s->socket));
 
@@ -935,7 +946,7 @@ socket_wnd_proc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
       { DEBUG(1,
 	      { char *nm = event_name(evt);
 		Sdprintf("Got event %s (err=%s) on closed socket %d=%d\n",
-			 nm, WinSockError(err), s->id, sock);
+			 nm, err ? WinSockError(err) : "none", s->id, sock);
 		free(nm);
 	      })
       }
@@ -1005,7 +1016,7 @@ HiddenFrameClass()
   if ( !name )
   { char buf[50];
 
-    sprintf(buf, "PlSocketWin%d", (int)hinstance);
+    sprintf(buf, "PlSocketWin%d", (int)(uintptr_t)hinstance);
     name = strdup(buf);
 
     wndClass.style		= 0;
@@ -1047,7 +1058,7 @@ SocketHiddenWindow()
 
 DWORD WINAPI
 socket_thread(LPVOID arg)
-{ DWORD parent = (DWORD)arg;
+{ DWORD parent = (DWORD)(uintptr_t)arg;
 
   SocketHiddenWindow();
   PostThreadMessage(parent, WM_READY, (WPARAM)0, (LPARAM)0);
@@ -1072,7 +1083,7 @@ startSocketThread()
 
   CreateThread(NULL,			/* security */
 	       2048,			/* stack */
-	       socket_thread, (LPVOID)me,	/* proc+arg */
+	       socket_thread, (LPVOID)(uintptr_t)me,	/* proc+arg */
 	       0,			/* flags */
 	       &State()->tid);
 
@@ -1293,8 +1304,8 @@ allocSocket(SOCKET socket)
   DWORD now = GetTickCount();
 
   if ( (p=lookupOSSocket(socket)) )
-  { DEBUG(1, Sdprintf("WinSock %d already registered on %d\n",
-		      (int)socket, p->id));
+  { DEBUG(1, Sdprintf("WinSock %d already registered on %d; tmo=%ld, now=%ld\n",
+		      (int)socket, p->id, (long)p->close_timeout, (long)now));
     p->socket = (SOCKET)-1;
   }
 #endif
@@ -1354,8 +1365,8 @@ allocSocket(SOCKET socket)
 #endif
   p->input = p->output = (IOSTREAM*)NULL;
 
-  DEBUG(2, Sdprintf("[%d]: allocSocket(%d): bound to %p\n",
-		    PL_thread_self(), socket, p));
+  DEBUG(2, Sdprintf("[%d]: allocSocket(%d): bound to %d\n",
+		    PL_thread_self(), socket, p->id));
 
   return p;
 }
@@ -1547,10 +1558,14 @@ int
 nbio_error(int code, nbio_error_map mapid)
 { const char *msg;
   term_t except = PL_new_term_ref();
+#ifdef HAVE_H_ERRNO
   error_codes *map;
+#endif
 
   if ( code == EPLEXCEPTION )
     return FALSE;
+
+#ifdef HAVE_H_ERRNO
   switch( mapid )
   { case TCP_HERRNO:
       map = h_errno_codes;
@@ -1558,6 +1573,8 @@ nbio_error(int code, nbio_error_map mapid)
     default:
       map = NULL;
   }
+#endif
+
   {
 #ifdef __WINDOWS__
   msg = WinSockError(code);
@@ -1656,6 +1673,7 @@ nbio_cleanup(void)
   {
 #ifdef __WINDOWS__
     WSACleanup();
+    SendMessage(State()->hwnd, WM_QUIT, 0, 0);
 #endif
   }
 
@@ -1675,7 +1693,8 @@ static int
 socketIsPendingClose(plsocket *s)
 { s->close_timeout = GetTickCount() + 30 * 1000;
   shutdown(s->socket, SD_BOTH);
-  DEBUG(3, Sdprintf("Setting timeout for FD_CLOSE on socket %d...\n", s->id));
+  DEBUG(2, Sdprintf("Setting close_timeout on socket %d... to %ld\n",
+		    s->id, (long)s->close_timeout));
 
   return 0;
 }
@@ -1773,6 +1792,21 @@ nbio_setopt(nbio_sock_t socket, nbio_option opt, ...)
 
       break;
     }
+    case SCK_BINDTODEVICE:
+    { const char *dev = va_arg(args, char*);
+
+#ifdef SO_BINDTODEVICE
+      if ( setsockopt(s->socket, SOL_SOCKET, SO_BINDTODEVICE,
+		      dev, strlen(dev)) == 0 )
+	return 0;
+
+      nbio_error(GET_ERRNO, TCP_ERRNO);
+      return -1;
+#else
+      (void)dev;
+      return -2;
+#endif
+    }
     case TCP_NO_DELAY:
 #ifdef TCP_NODELAY
     { int val = va_arg(args, int);
@@ -1791,7 +1825,9 @@ nbio_setopt(nbio_sock_t socket, nbio_option opt, ...)
       break;
     }
 #else
-    rc = -2;				/* not implemented */
+    { rc = -2;				/* not implemented */
+      break;
+    }
 #endif
     case UDP_BROADCAST:
     { int val = va_arg(args, int);
