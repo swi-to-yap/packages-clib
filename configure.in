@@ -110,19 +110,24 @@ case "$CPP" in
 	;;
 	*) ACPP="$CPP"
 esac
+m4_ifdef([HAS_TOP],[
+( CC=$ACC; LD=$ALD; CPP=$ACPP; CFLAGS=$SHLIB_CFLAGS; LDFLAGS=$LDFLAGS;
+  export CC LD CFLAGS LDFLAGS;
+  mkdir -p packages/clib/maildrop/rfc822;
+  mkdir -p packages/clib/maildrop/rfc2045;
+  ( cd packages/clib/maildrop/rfc822  && $SHELL ../../../../"$srcdir"/packages/clib/maildrop/rfc822/configure --host=$host)
+  ( cd packages/clib/maildrop/rfc2045  && $SHELL ../../../../"$srcdir"/packages/clib/maildrop/rfc2045/configure --host=$host)
+)
+]
+,[   
 ( CC=$ACC; LD=$ALD; CPP=$ACPP; CFLAGS=$CFLAGS; LDFLAGS=$LDFLAGS;
   export CC LD CFLAGS LDFLAGS
 
-m4_ifdef([HAS_TOP],[
-  (mkdir -p packages/clib/maildrop/rfc822 ; cd packages/clib/maildrop/rfc822  && $SHELL ../../../../"$srcdir"/packages/clib/maildrop/rfc822/configure --host=$host)
-  (mkdir -p packages/clib/maildrop/rfc2045 ; cd packages/clib/maildrop/rfc2045 && $SHELL ../../../../"$srcdir"/packages/clib/maildrop/rfc822/configure --host=$host)
-]
-,[   
   (cd maildrop/rfc822 &&  $SHELL configure --host=$host)
   (cd maildrop/rfc2045 && $SHELL configure --host=$host)
+)
 ])
 
-)
 AC_MSG_RESULT("Done")
 
 AC_MSG_CHECKING(h_errno)
