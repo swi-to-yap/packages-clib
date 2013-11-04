@@ -39,6 +39,12 @@
 static int des_setkey(const char *key);
 static int des_cipher(const char *in, char *out, long salt, int num_iter);
 
+#ifndef __WINDOWS__
+#if defined(_MSC_VER) || defined(__MINGW32__)
+#define __WINDOWS__ 1
+#endif
+#endif
+
 # ifdef _MSC_VER
 typedef __int32 int32_t;
 #else
