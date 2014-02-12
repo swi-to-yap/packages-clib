@@ -94,7 +94,7 @@ struct rfc2045attr {
 	char *value;
 	} ;
 
-struct rfc2045 *rfc2045_alloc();
+struct rfc2045 *rfc2045_alloc(void);
 void rfc2045_parse(struct rfc2045 *, const char *, size_t);
 void rfc2045_free(struct rfc2045 *);
 const char *rfc2045_contentname(const struct rfc2045 *);
