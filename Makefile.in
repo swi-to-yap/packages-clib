@@ -99,7 +99,7 @@ maildrop/rfc2045/librfc2045.a:
 		(cd maildrop/rfc2045 && $(MAKE))
 
 
-install:	$(TARGETS)
+install:	$(TARGETS) install-examples
 		mkdir -p $(DESTDIR)$(SOLIBDIR)
 		for f in $(TARGETS); do \
 		  $(INSTALL_PROGRAM) $$f $(DESTDIR)$(SOLIBDIR); \
