@@ -129,8 +129,6 @@ m4_ifdef([HAS_TOP],[
 )
 ])
 
-AC_MSG_RESULT("Done")
-
 AC_MSG_CHECKING(h_errno)
 AC_TRY_COMPILE(
 [
