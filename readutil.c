@@ -49,6 +49,8 @@ returned as a difference list  Codes-Tail.   If  EOF is encountered, the
 Codes list is closed and Tail is unified with [].
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
+install_t install_readutil(void);
+
 static foreign_t
 read_line_to_codes3(term_t stream, term_t codes, term_t tail)
 { wchar_t buf[BUFSIZE];
@@ -114,8 +116,56 @@ read_line_to_codes2(term_t stream, term_t codes)
 
 
 static foreign_t
+read_line_to_string2(term_t stream, term_t codes)
+{ size_t bsize = BUFSIZE;
+  wchar_t *buf = (wchar_t *)malloc(bsize*sizeof(wchar_t));
+  wchar_t *o = buf, *e = &buf[bsize];
+  IOSTREAM *s;
+  term_t cl = PL_copy_term_ref(codes);
+  int rc = FALSE;
+
+  if ( !PL_get_stream_handle(stream, &s) )
+    return FALSE;
+
+  for(;;)
+  { int	c = Sgetcode(s);
+
+    if ( c == EOF )
+    { if ( (s->flags & SIO_FERR) )
+	goto out;				/* error */
+
+      rc = PL_unify_atom(codes, ATOM_end_of_file);
+      goto out;
+    }
+
+    // reached end of buffer?
+    if ( o == e )
+      { int pos = o-buf;
+	bsize += BUFSIZE;
+	buf = (wchar_t *)realloc(buf, bsize*sizeof(wchar_t));
+	o = &buf[pos], e = &buf[bsize];
+     }
+
+    *o++ = c;
+    if ( c == '\n' )
+    {  o--;
+      if ( o>buf && o[-1] == '\r' )
+	o--;
+      rc = PL_unify_wchars(cl, PL_STRING, o-buf, buf);
+      goto out;
+    }
+  }
+
+out:
+  PL_release_stream(s);
+  return rc;
+}
+
+
+
+static foreign_t
 read_stream_to_codes3(term_t stream, term_t codes, term_t tail)
-{ wchar_t buf[BUFSIZE];
+{ wchar_t  buf[BUFSIZE];
   wchar_t *o = buf, *e = &buf[BUFSIZE];
   IOSTREAM *s;
   term_t cl = PL_copy_term_ref(codes);
@@ -159,12 +209,56 @@ read_stream_to_codes2(term_t stream, term_t codes)
 }
 
 
+static foreign_t
+read_stream_to_string2(term_t stream, term_t string, term_t tail)
+{ size_t bsize = BUFSIZE;
+  wchar_t *buf = (wchar_t *)malloc(bsize*sizeof(wchar_t));
+  wchar_t *o = buf, *e = &buf[BUFSIZE];
+  IOSTREAM *s;
+  term_t cl = PL_copy_term_ref(string);
+
+  if ( !PL_get_stream_handle(stream, &s) ) {
+    if (buf)
+      free(buf);
+    return FALSE;
+  }
+
+  for(;;)
+  { int	c = Sgetcode(s);
+
+    if ( c == EOF )
+      { if ( !PL_release_stream(s) ) {
+	  if (buf)
+	    free(buf);
+	  return FALSE;			/* error */
+	}
+
+      return PL_unify_wchars(cl, PL_STRING, o-buf, buf);
+    }
+
+    if ( o == e )
+    { int pos = o-buf;
+      bsize += BUFSIZE;
+      buf = (wchar_t *)realloc(buf, bsize*sizeof(wchar_t));
+      if (!buf)
+	return FALSE;
+      o = &buf[pos], e = &buf[bsize];
+    }
+
+    *o++ = c;
+  }
+}
+
+
 install_t
-install_readutil()
+install_readutil(void)
 { ATOM_end_of_file = PL_new_atom("end_of_file");
 
   PL_register_foreign("read_line_to_codes", 3, read_line_to_codes3, 0);
   PL_register_foreign("read_line_to_codes", 2, read_line_to_codes2, 0);
+  PL_register_foreign("read_line_to_string", 2, read_line_to_string2, 0);
   PL_register_foreign("read_stream_to_codes", 3, read_stream_to_codes3, 0);
   PL_register_foreign("read_stream_to_codes", 2, read_stream_to_codes2, 0);
+  PL_register_foreign("read_line_to_string", 2, read_line_to_string2, 0);
+  PL_register_foreign("read_stream_to_string", 2, read_stream_to_string2, 0);
 }
