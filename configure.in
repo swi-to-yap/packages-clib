@@ -190,8 +190,8 @@ else
 fi
 
 CLIB_PLTARGETS=`echo $CLIB_TARGETS | sed -e "s/\.$SO/.pl/g" -e "s/files.pl/filesex.pl/"`
-if echo "$PL_CLIB_TARGETS" | grep socket.pl 2>&1 >/dev/null; then
-  CLIB_PLTARGETS="$PLCLIB_TARGETS streampool.pl"
+if echo "$CLIB_PLTARGETS" | grep socket.pl 2>&1 >/dev/null; then
+  CLIB_PLTARGETS="$CLIB_PLTARGETS streampool.pl"
 fi
 
 m4_ifdef([HAS_TOP],[m4_ignore],[   
