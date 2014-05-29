@@ -141,9 +141,9 @@ int rfc2045_cdecode_end(struct rfc2045 *);
 
 void rfc2045_base64encode_start( void (*)(const char *, size_t));
 void rfc2045_base64encode(const char *, size_t);
-void rfc2045_base64encode_end();
+void rfc2045_base64encode_end(void);
 
-const char *rfc2045_getdefaultcharset();
+const char *rfc2045_getdefaultcharset(void);
 void rfc2045_setdefaultcharset(const char *);
 struct rfc2045 *rfc2045_fromfd(int);
 #define	rfc2045_fromfp(f)	(rfc2045_fromfd(fileno((f))))
@@ -154,10 +154,10 @@ extern void rfc2045_error(const char *);
 struct  rfc2045ac {
 	void (*start_section)(struct rfc2045 *);
 	void (*section_contents)(const char *, size_t);
-	void (*end_section)();
+	void (*end_section)(void);
 	} ;
 
-struct rfc2045 *rfc2045_alloc_ac();
+struct rfc2045 *rfc2045_alloc_ac(void);
 int rfc2045_ac_check(struct rfc2045 *, int);
 int rfc2045_rewrite(struct rfc2045 *, int, int, const char *);
 int rfc2045_rewrite_func(struct rfc2045 *p, int,
