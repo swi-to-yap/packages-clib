@@ -100,6 +100,9 @@ typedef wchar_t echar;			/* environment character */
 typedef char echar;
 #endif
 
+install_t
+install_process(void);
+
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ISSUES:
 	- Deal with child errors (no cwd, cannot execute, etc.)
@@ -1656,7 +1659,7 @@ process_kill(term_t pid, term_t signal)
 #define MKFUNCTOR(n,a) FUNCTOR_ ## n ## a = PL_new_functor(PL_new_atom(#n), a)
 
 install_t
-install_process()
+install_process(void)
 {
 #ifdef __WINDOWS__
   win_init();

@@ -33,6 +33,9 @@
 #define strtoll(s,e,b) _strtoi64(s,e,b)
 #endif
 
+install_t
+install_cgi(void);
+
 static int
 isinteger(const char *s, long long *val, size_t len)
 { char *e;
@@ -184,6 +187,6 @@ pl_cgi_get_form(term_t form)
 
 
 install_t
-install_cgi()
+install_cgi(void)
 { PL_register_foreign("cgi_get_form", 1, pl_cgi_get_form, 0);
 }

@@ -19,6 +19,9 @@
 ** returns - time_t, or 0 if the date cannot be parsed
 */
 
+time_t rfc822_parsedt(const char *rfcdt);
+const char *rfc822_mkdt(time_t t);
+
 static unsigned parsedig(const char **p)
 {
 unsigned i=0;

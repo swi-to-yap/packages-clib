@@ -87,6 +87,9 @@ struct timezone
 { int zone;
 };
 
+int
+alarm_error(term_t alarm, int err);
+
 static int
 gettimeofday(struct timeval *tv, struct timezone *tz)
 { struct timeb tb;
@@ -161,7 +164,10 @@ print_trace (void)
 #define DEBUG(n, g) ((void)0)
 #endif /*O_DEBUG*/
 
+install_t install_time(void);
+install_t uninstall_time(void);
 static void	on_alarm(int sig);
+int  alarm_error(term_t alarm, int err);
 
 static module_t	   MODULE_user;
 static atom_t	   ATOM_remove;
@@ -993,7 +999,7 @@ current_alarms(term_t time, term_t goal, term_t id, term_t status,
 
 
 install_t
-install_time()
+install_time(void)
 { MODULE_user	  = PL_new_module(PL_new_atom("user"));
 
   FUNCTOR_alarm1  = PL_new_functor(PL_new_atom("$alarm"), 1);
@@ -1028,6 +1034,6 @@ install_time()
 
 
 install_t
-uninstall_time()
+uninstall_time(void)
 { cleanup(0, NULL);
 }

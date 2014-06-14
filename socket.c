@@ -72,6 +72,12 @@ static atom_t ATOM_max_message_size;    /* "message_size" */
 
 static functor_t FUNCTOR_socket1;	/* $socket(Id) */
 
+NBIO_EXPORT(int)
+tcp_get_socket(term_t Socket, int *id);
+install_t
+install_socket(void);
+install_t
+uninstall_socket(void);
 
 		 /*******************************
 		 *	     CONVERSION		*
@@ -672,7 +678,7 @@ pl_debug(term_t val)
 #endif
 
 install_t
-install_socket()
+install_socket(void)
 { nbio_init("socket");
 
   ATOM_reuseaddr        = PL_new_atom("reuseaddr");
@@ -713,6 +719,6 @@ install_socket()
 
 
 install_t
-uninstall_socket()
+uninstall_socket(void)
 { nbio_cleanup();
 }

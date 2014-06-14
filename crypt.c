@@ -47,6 +47,9 @@ extern char *crypt(const char *key, const char *setting);
 /* md5passwd.c */
 extern char *md5_crypt(const char *pw, const char *salt);
 
+install_t
+install_crypt(void);
+
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Simple interface to the Unix   password  encryption routine. Implemented
 for providing authorization in  the   multi-threaded  Prolog  based HTTP
@@ -163,6 +166,6 @@ pl_crypt(term_t passwd, term_t encrypted)
 
 
 install_t
-install_crypt()
+install_crypt(void)
 { PL_register_foreign("crypt", 2, pl_crypt, 0);
 }

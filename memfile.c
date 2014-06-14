@@ -31,6 +31,9 @@
 
 #define streq(s,q) (strcmp((s), (q)) == 0)
 
+install_t
+install_memfile(void);
+
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Memory-files
 
@@ -518,7 +521,7 @@ memory_file_to_codes3(term_t handle, term_t atom, term_t encoding)
 #define MKATOM(n) ATOM_ ## n = PL_new_atom(#n);
 
 install_t
-install_memfile()
+install_memfile(void)
 { if ( PL_query(PL_QUERY_VERSION) <= 50505 )
   { PL_warning("Requires SWI-Prolog version 5.5.6 or later");
     return;

@@ -41,6 +41,11 @@
 #include <SWI-Prolog.h>
 #include "clib.h"
 
+foreign_t
+pl_rlimit(term_t what, term_t old, term_t new);
+install_t
+install_rlimit(void);
+
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Provide	an interface to the Unix system resources (getrlimit()/setrlimit()).
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -123,6 +128,6 @@ pl_rlimit(term_t what, term_t old, term_t new)
 
 
 install_t
-install_rlimit()
+install_rlimit(void)
 { PL_register_foreign("rlimit", 3, pl_rlimit, 0);
 }

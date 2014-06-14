@@ -28,7 +28,13 @@
 
 static char	*rfc2045_defcharset=0;
 
-extern void rfc2045_enomem();
+void rfc2045_add_buf(
+	char **bufptr,	/* Buffer */
+	size_t *bufsize,	/* Buffer's maximum size */
+	size_t *buflen,		/* Buffer's current size */
+	const char *p, size_t len);
+extern void rfc2045_enomem(void);
+void rfc2045_add_workbuf(struct rfc2045 *h, const char *p, size_t len);
 
 #define	MAXLEVELS	20
 #define	MAXPARTS	300

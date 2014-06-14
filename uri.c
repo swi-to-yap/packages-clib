@@ -45,6 +45,8 @@ static char *_utf8_put_char(char *out, int chr);
 	((chr) < 0x80 ? out[0]=(char)(chr), out+1 \
 		      : _utf8_put_char(out, (chr)))
 
+install_t install_uri(void);
+install_t uninstall_uri(void);
 
 		 /*******************************
 		 *	      ERRORS		*
@@ -1591,7 +1593,7 @@ uri_iri(term_t URI, term_t IRI)
 	FUNCTOR_ ## n ## a = PL_new_functor(PL_new_atom(#n), a)
 
 install_t
-install_uri()
+install_uri(void)
 { MKATOM(query_value);
   MKATOM(fragment);
   MKATOM(path);

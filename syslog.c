@@ -31,6 +31,9 @@
 #include <syslog.h>
 #include <string.h>
 
+install_t
+install_syslog(void);
+
 #define streq(s,q) (strcmp(s,q) == 0)
 
 static int

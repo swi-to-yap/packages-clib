@@ -143,6 +143,8 @@ leave the details to this function.
 #include <malloc.h>
 #endif
 
+void					/* allow debugger breakpoint */
+tcp_debug(void);
 
 
 #ifdef __WINDOWS__
@@ -294,6 +296,8 @@ need_retry(int error)
 }
 #endif
 
+int nbio_debug(int level);
+
 #ifdef O_DEBUG
 static int debugging;
 
@@ -319,7 +323,7 @@ nbio_debug(int level)
 #endif
 
 void					/* allow debugger breakpoint */
-tcp_debug()
+tcp_debug(void)
 { Sdprintf("Trapping debugger\n");
 }
 

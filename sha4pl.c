@@ -45,6 +45,9 @@ static atom_t ATOM_utf8;
 static atom_t ATOM_octet;
 static atom_t ATOM_encoding;
 
+install_t
+install_sha4pl(void);
+
 typedef enum
 { ALGORITHM_SHA1,
   ALGORITHM_SHA224,
@@ -272,7 +275,7 @@ pl_hmac_sha(term_t key, term_t data, term_t mac, term_t options)
 #define MKATOM(n) ATOM_ ## n = PL_new_atom(#n);
 
 install_t
-install_sha4pl()
+install_sha4pl(void)
 { MKATOM(sha1);				/* =160 */
   MKATOM(sha224);
   MKATOM(sha256);

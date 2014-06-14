@@ -111,7 +111,11 @@ case "$CPP" in
 	*) ACPP="$CPP"
 esac
 m4_ifdef([HAS_TOP],[
-( CC=$ACC; LD=$ALD; CPP=$ACPP; CFLAGS=$SHLIB_CFLAGS; LDFLAGS=$LDFLAGS;
+( if test x"$SYSROOT" != x; then
+   CC="$ACC  --sysroot=$SYSROOT"; LD=$ALD; CPP="$ACPP  --sysroot=$SYSROOT"; CFLAGS=$SHLIB_CFLAGS; LDFLAGS=$LDFLAGS;
+  else
+   CC=$ACC; LD=$ALD; CPP=$ACPP; CFLAGS=$SHLIB_CFLAGS; LDFLAGS=$LDFLAGS;
+  fi
   export CC LD CFLAGS LDFLAGS;
   mkdir -p packages/clib/maildrop/rfc822;
   mkdir -p packages/clib/maildrop/rfc2045;

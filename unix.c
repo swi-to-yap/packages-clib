@@ -45,6 +45,9 @@
 #include <crt_externs.h>
 #endif
 
+install_t
+install_unix(void);
+
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Unix process management.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -267,7 +270,7 @@ static foreign_t
 pl_environ(term_t l)
 {
 #ifdef HAVE__NSGETENVIRON
-  char **environ = _NSGetEnviron();
+  char **environ = *_NSGetEnviron();
 #else
   extern char **environ;
 #endif
@@ -400,7 +403,7 @@ pl_detach_IO(term_t stream)
 
 
 install_t
-install_unix()
+install_unix(void)
 { PL_register_foreign("fork_",     1, pl_fork, 0);
   PL_register_foreign("exec",      1, pl_exec, 0);
   PL_register_foreign("wait",      2, pl_wait, 0);

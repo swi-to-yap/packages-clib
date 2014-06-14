@@ -26,6 +26,10 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/types.h>
+
+install_t
+install_uid(void);
+
 #ifndef __WINDOWS__
 #include <pwd.h>
 #include <grp.h>
@@ -230,7 +234,7 @@ pl_setegid(term_t gid)
 #endif
 
 install_t
-install_uid()
+install_uid(void)
 {
 #ifndef __WINDOWS__
  PL_register_foreign("getuid", 1, pl_getuid, 0);

@@ -43,6 +43,8 @@
 #undef max				/* be sure we have ours */
 #define max(x, y) ((x)>(y) ? (x) : (y))
 
+install_t
+install_mime(void);
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 This module defines an interface to   the rfc2045 (MIME) parsing library
@@ -482,7 +484,7 @@ rfc2045_error(const char *errmsg)
 
 
 install_t
-install_mime()
+install_mime(void)
 { ATOM_			     = PL_new_atom("");
   ATOM_stream		     = PL_new_atom("stream");
 

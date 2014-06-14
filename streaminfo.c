@@ -27,6 +27,8 @@
 #include "error.h"
 #include <ctype.h>
 
+install_t install_streaminfo(void);
+
 static int
 print_byte(int value)
 { if ( isgraph(value) || isspace(value) )
@@ -104,6 +106,6 @@ stream_info(term_t stream)
 }
 
 install_t
-install_streaminfo()
+install_streaminfo(void)
 { PL_register_foreign("$stream_info", 1, stream_info, 0);
 }

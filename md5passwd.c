@@ -30,6 +30,8 @@ static char rcsid[] = "$Header$";
 #define MD5Update(ctx, data, len) md5_append(ctx, (md5_byte_t*)data, len)
 #define MD5Final(digest, ctx) md5_finish(ctx, digest)
 
+char *
+md5_crypt(register const char *pw, register const char * salt);
 
 static unsigned char itoa64[] =		/* 0 ... 63 => ascii - 64 */
 	"./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -53,9 +55,7 @@ to64(s, v, n)
  */
 
 char *
-md5_crypt(pw, salt)
-	register const char *pw;
-	register const char *salt;
+md5_crypt(register const char *pw, register const char * salt)
 {
 	static char	*magic = "$1$";	/*
 						 * This string is magic for

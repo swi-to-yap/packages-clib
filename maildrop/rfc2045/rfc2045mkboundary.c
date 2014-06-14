@@ -30,7 +30,7 @@
 extern int gethostname(char *, size_t);
 #endif
 
-extern void rfc2045_enomem();
+extern void rfc2045_enomem(void);
 
 char *rfc2045_mk_boundary(struct rfc2045 *s, int fd)
 {

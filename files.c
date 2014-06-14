@@ -76,6 +76,9 @@
 
 #endif /*__WINDOWS__*/
 
+install_t
+install_files( void );
+
 static functor_t FUNCTOR_access1;
 static functor_t FUNCTOR_modified1;
 static functor_t FUNCTOR_changed1;
@@ -292,7 +295,7 @@ pl_link_file(term_t from, term_t to, term_t how)
 
 
 install_t
-install_files()
+install_files( void )
 { FUNCTOR_access1   = PL_new_functor(PL_new_atom("access"), 1);
   FUNCTOR_modified1 = PL_new_functor(PL_new_atom("modified"), 1);
   FUNCTOR_changed1  = PL_new_functor(PL_new_atom("changed"), 1);

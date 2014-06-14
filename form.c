@@ -42,6 +42,9 @@
 #include <io.h>
 #endif
 
+char *
+next_line(const char *in);
+
 #include "error.h"
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
