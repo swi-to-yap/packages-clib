@@ -174,6 +174,7 @@ pl_error(const char *pred, int arity, const char *msg, int id, ...)
       break;
     }
     default:
+      rc = FALSE; // make gcc happy
       assert(0);
   }
   va_end(args);

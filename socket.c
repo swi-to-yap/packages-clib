@@ -142,6 +142,7 @@ pl_host_to_address(term_t Host, term_t Ip)
 	  break;
 	}
 	default:
+	  rc = FALSE;
 	  assert(0);
       }
 
