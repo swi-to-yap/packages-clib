@@ -17,6 +17,8 @@ OBJ=	rfc822.o rfc822_getaddr.o rfc822_getaddrs.o \
 
 all:	librfc822.a
 
+install: all
+
 librfc822.a: $(OBJ)
 	rm -f librfc822.a
 	$(AR) r librfc822.a $(OBJ)

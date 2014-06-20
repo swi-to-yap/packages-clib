@@ -4,25 +4,26 @@ dnl
 dnl Copyright 1998 - 1999 Double Precision, Inc.  See COPYING for
 dnl distribution information.
 
-AC_INIT(rfc822.c)
-AC_PREREQ([2.50])
-AC_CONFIG_HEADER(config.h)
-AC_SUBST(AR)
-AC_SUBST(RANLIB)
+dnl AC_INIT(rfc822.c)
+dnl AC_PREREQ([2.50])
+dnl AC_CONFIG_HEADER(config.h)
+dnl AC_SUBST(AR)
+dnl AC_SUBST(RANLIB)
+
+dnl AC_CHECK_TARGET_TOOL([RANLIB], [ranlib], [:])
+dnl AC_CHECK_TARGET_TOOL([AR], [ar], [:])
+
 
 dnl Checks for programs.
-AC_PROG_CC
-AC_PROG_CPP
-AC_CANONICAL_HOST
-AC_CHECK_TOOLS(AR, ar, ar)
-AC_CHECK_TOOLS(RANLIB, ranlib, ranlib)
+dnl AC_PROG_CC
+dnl AC_PROG_CPP
+dnl AC_CANONICAL_HOST
+dnl AC_USE_SYSTEM_EXTENSIONS
 
-AC_USE_SYSTEM_EXTENSIONS
-
-if test "$GCC" = yes ; then
-        CXXFLAGS="$CXXFLAGS -Wall"
-        CFLAGS="$CFLAGS -Wall"
-fi
+dnl if test "$GCC" = yes ; then
+dnl         CXXFLAGS="$CXXFLAGS -Wall"
+dnl         CFLAGS="$CFLAGS -Wall"
+dnl fi
 
 dnl Checks for libraries.
 
@@ -100,9 +101,9 @@ daylight)
 	;;
 esac
 
-if test -d ../unicode
+if test -d "$srcdir"/../unicode
 then
 	AC_DEFINE_UNQUOTED(HAVE_LIBUNICODE,1,[Whether we have libunicode.a])
 fi
 
-AC_OUTPUT(Makefile)
+dnl AC_OUTPUT(Makefile)

@@ -5,7 +5,7 @@
 ################################################################
 
 CC=@CC@
-CFLAGS=@CFLAGS@ @DEFS@ -I. -I$(srcdir) -I$(srcdir)/..
+CFLAGS=@RFC2045_CFLAGS@ @DEFS@ -I. -I$(srcdir) -I$(srcdir)/..
 LIBS=@LIBS@
 AR=@AR@
 RANLIB=@RANLIB@
@@ -19,6 +19,8 @@ OBJ=	rfc2045.o rfc2045acchk.o rfc2045acprep.o \
 	rfc2045tryboundary.o rfc2045xdump.o
 
 all:	librfc2045.a
+
+install: all
 
 librfc2045.a: $(OBJ)
 	rm -f librfc2045.a
