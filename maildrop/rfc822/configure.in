@@ -39,6 +39,8 @@ dnl Checks for library functions.
 
 AC_CHECK_FUNCS(strcasecmp strncasecmp)
 
+RFC822_CFLAGS="$SHLIB_CFLAGS"
+
 AC_CACHE_CHECK([how to calculate alternate timezone],librfc822_cv_SYS_TIMEZONE,
 
 AC_TRY_COMPILE([
@@ -105,5 +107,8 @@ if test -d "$srcdir"/../unicode
 then
 	AC_DEFINE_UNQUOTED(HAVE_LIBUNICODE,1,[Whether we have libunicode.a])
 fi
+
+AC_SUBST(RFC822_CFLAGS)
+
 
 dnl AC_OUTPUT(Makefile)

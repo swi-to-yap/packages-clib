@@ -5,7 +5,7 @@
 ################################################################
 
 CC=@CC@
-CFLAGS=@CFLAGS@ @DEFS@ -I. -I$(srcdir) -I$(srcdir)/..
+CFLAGS=@RFC822_CFLAGS@ @DEFS@ -I. -I$(srcdir) -I$(srcdir)/..
 LIBS=@LIBS@
 AR=@AR@
 RANLIB=@RANLIB@
