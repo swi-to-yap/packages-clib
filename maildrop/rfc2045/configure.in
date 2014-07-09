@@ -39,7 +39,7 @@ AC_TYPE_PID_T
 
 dnl Checks for library functions.
 
-RFC2045_CFLAGS="$CFLAGS"
+RFC2045_CFLAGS="$SHLIB_CFLAGS"
 AC_CHECK_FUNC(strncasecmp,,RFC2045_CFLAGS="$RFC2045_CFLAGS -Dstrncasecmp=strnicmp")
 AC_CHECK_FUNC(strcasecmp,,RFC2045_CFLAGS="$RFC2045_CFLAGS -Dstrcasecmp=stricmp")
 
