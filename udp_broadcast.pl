@@ -531,6 +531,6 @@ udp_broadcast_initialize(IPAddress, Subnet) :-
 
 	udp_broadcast_address(IPAddress, Subnet, BroadcastAddr),
 	assert(udp_broadcast_service(udp_subnet, BroadcastAddr:20005)),
-	assert(udp_subnet_member(Address:_Port) :- udp_broadcast_address(Address, Subnet, BroadcastAddr)),
+	assert( (udp_subnet_member(Address:_Port) :- udp_broadcast_address(Address, Subnet, BroadcastAddr)) ),
 
 	start_udp_listener_daemon.
