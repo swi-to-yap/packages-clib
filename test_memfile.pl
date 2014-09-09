@@ -34,6 +34,7 @@
 	  ]).
 :- asserta(user:file_search_path(foreign, '.')).
 
+:- use_module(library(lists)).
 :- use_module(library(shlib)).
 
 :- use_module(memfile).

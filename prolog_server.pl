@@ -34,6 +34,7 @@
 	  [ prolog_server/2		% +Port, +Options
 	  ]).
 
+:- use_module(library(lists)).
 :- use_module(library(socket)).
 
 %%	prolog_server(?Port, +Options)
