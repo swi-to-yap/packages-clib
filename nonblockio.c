@@ -212,8 +212,8 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 #define set(s, f)   ((s)->flags |= (f))
 #define clear(s, f) ((s)->flags &= ~(f))
-#define true(s, f)  ((s)->flags & (f))
-#define false(s, f) (!true(s, f))
+#define True(s, f)  ((s)->flags & (f))
+#define False(s, f) (!True(s, f))
 
 #define PLSOCK_MAGIC 0x38da3f2c
 
@@ -478,7 +478,7 @@ waitRequest(plsocket *s)
       return TRUE;
     }
 
-    if ( false(s, PLSOCK_DISPATCH) )
+    if ( False(s, PLSOCK_DISPATCH) )
     { if ( !GetMessage(&msg, NULL, WM_DONE, WM_DONE) )
 	return FALSE;
     } else if ( GetMessage(&msg, NULL, 0, 0) )
@@ -526,7 +526,7 @@ nbio_wait(nbio_sock_t socket, nbio_request request)
       return 0;
     }
 
-    if ( false(s, PLSOCK_DISPATCH) )
+    if ( False(s, PLSOCK_DISPATCH) )
     { if ( !GetMessage(&msg, NULL, WM_DONE, WM_DONE) )
 	return FALSE;
     } else if ( GetMessage(&msg, NULL, 0, 0) )
@@ -684,7 +684,7 @@ doRequest(plsocket *s)
       if ( s->w32_flags & FD_CONNECT )
       { s->w32_flags &= ~FD_CONNECT;
 
-	if ( true(s, PLSOCK_WAITING) )
+	if ( True(s, PLSOCK_WAITING) )
 	{ doneRequest(s);
 	  break;
 	}
@@ -717,7 +717,7 @@ doRequest(plsocket *s)
       { SOCKET slave;
 
 	s->w32_flags &= ~FD_ACCEPT;
-	if ( true(s, PLSOCK_WAITING) )
+	if ( True(s, PLSOCK_WAITING) )
 	{ doneRequest(s);
 	  break;
 	}
@@ -758,7 +758,7 @@ doRequest(plsocket *s)
       if ( s->w32_flags & (FD_READ|FD_CLOSE) )
       { s->w32_flags &= ~FD_READ;
 
-	if ( true(s, PLSOCK_WAITING) )
+	if ( True(s, PLSOCK_WAITING) )
 	{ doneRequest(s);
 	  break;
 	}
@@ -786,7 +786,7 @@ doRequest(plsocket *s)
 
 	s->w32_flags &= ~FD_READ;
 
-	if ( true(s, PLSOCK_WAITING) )
+	if ( True(s, PLSOCK_WAITING) )
 	{ doneRequest(s);
 	  break;
 	}
@@ -820,7 +820,7 @@ doRequest(plsocket *s)
 
 	s->w32_flags &= ~FD_WRITE;
 
-	if ( true(s, PLSOCK_WAITING) )
+	if ( True(s, PLSOCK_WAITING) )
 	{ doneRequest(s);
 	  break;
 	}
@@ -861,7 +861,7 @@ doRequest(plsocket *s)
 
 	s->w32_flags &= ~FD_WRITE;
 
-	if ( true(s, PLSOCK_WAITING) )
+	if ( True(s, PLSOCK_WAITING) )
 	{ doneRequest(s);
 	  break;
 	}
@@ -1109,10 +1109,10 @@ without dispatching if no input is available.
 
 static int
 wait_socket(plsocket *s)
-{ if ( true(s, PLSOCK_DISPATCH) )
+{ if ( True(s, PLSOCK_DISPATCH) )
   { int fd = s->socket;
 
-    if ( true(s, PLSOCK_NONBLOCK) && !PL_dispatch(fd, PL_DISPATCH_INSTALLED) )
+    if ( True(s, PLSOCK_NONBLOCK) && !PL_dispatch(fd, PL_DISPATCH_INSTALLED) )
     { fd_set rfds;
       struct timeval tv;
 
@@ -1745,7 +1745,7 @@ nbio_closesocket(nbio_sock_t socket)
     return -1;
   }
 
-  if ( true(s, PLSOCK_OUTSTREAM|PLSOCK_INSTREAM) )
+  if ( True(s, PLSOCK_OUTSTREAM|PLSOCK_INSTREAM) )
   { int flags = s->flags;		/* may drop out! */
 
     if ( flags & PLSOCK_INSTREAM )
@@ -2159,7 +2159,7 @@ nbio_accept(nbio_sock_t master, struct sockaddr *addr, socklen_t *addrlen)
   s = allocSocket(slave);
   s->flags |= PLSOCK_ACCEPT;
 #ifndef __WINDOWS__
-  if ( true(s, PLSOCK_NONBLOCK) )
+  if ( True(s, PLSOCK_NONBLOCK) )
     nbio_setopt(slave, TCP_NONBLOCK);
 #endif
 
@@ -2341,7 +2341,7 @@ nbio_close_input(nbio_sock_t socket)
 		    PL_thread_self(), socket, s->flags));
   s->flags &= ~PLSOCK_INSTREAM;
 #ifdef __WINDOWS__
-  if ( false(s, PLSOCK_LISTEN) )
+  if ( False(s, PLSOCK_LISTEN) )
   { SOCKET sock;
 
     if ( (sock=s->socket) < 0 )
