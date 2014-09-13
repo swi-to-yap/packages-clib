@@ -35,6 +35,7 @@
 	  ]).
 
 /** <module> Unix syslog interface
+@ingroup SWILibrary
 
 This library provides an interface to   the  Unix syslog() facility. The
 interface is an almost direct translation of  the POSIX syslog API, with

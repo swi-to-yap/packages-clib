@@ -54,6 +54,7 @@
 :- use_foreign_library(foreign(uri)).
 
 /** <module> Process URIs
+@ingroup SWILibrary
 
 This  library  provides   high-performance    C-based   primitives   for
 manipulating URIs. We decided for a  C-based implementation for the much

@@ -33,6 +33,7 @@
 	  ]).
 
 /** <module> Universally Unique Identifier (UUID) Library
+@ingroup SWILibrary
 
 The library provides operations on UUIDs.   Please consult other sources
 for understanding UUIDs and  the  implications   of  the  different UUID

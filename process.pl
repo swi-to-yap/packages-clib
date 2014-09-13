@@ -60,6 +60,7 @@
 		     ]).
 
 /** <module> Create processes and redirect I/O
+@ingroup SWILibrary
 
 The module library(process) implements interaction  with child processes
 and unifies older interfaces such   as  shell/[1,2], open(pipe(command),

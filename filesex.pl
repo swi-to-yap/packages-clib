@@ -41,6 +41,7 @@
 	  ]).
 
 /** <module> Extended operations on files
+@ingroup SWILibrary
 
 This module provides additional operations on   files.  This covers both
 more  obscure  and  possible  non-portable    low-level  operations  and
