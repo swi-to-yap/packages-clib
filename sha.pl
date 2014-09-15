@@ -40,6 +40,10 @@
 
 :- use_foreign_library(foreign(sha4pl)).
 
+/** <module> SHA hash 
+ * @ingroup clib
+ */
+
 %%	sha_hash(+Data, -Hash, +Options) is det
 %
 %	Hash is the SHA hash of Data, The conversion is controlled

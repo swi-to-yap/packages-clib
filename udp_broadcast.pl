@@ -35,6 +35,7 @@
 	     ]).
 
 /** <module> A UDP Broadcast Bridge
+     @ingroup socket
 
 SWI-Prolog's broadcast library provides a  means   that  may  be used to
 facilitate publish and subscribe communication regimes between anonymous

@@ -33,6 +33,10 @@
 	  [ rlimit/3			% +Limit, -Old, +New
 	  ]).
 
+/** <module> Process Resource Management
+ *  @ingroup SWIclib
+ */
+
 %	rlimit(+Limit, -Old, +New)
 %
 %	Query and set POSIX resource limits.  Provided resources are:

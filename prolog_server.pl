@@ -37,6 +37,10 @@
 :- use_module(library(lists)).
 :- use_module(library(socket)).
 
+/** <module> TCP Server 
+    @ingroup socket
+ */
+
 %%	prolog_server(?Port, +Options)
 %
 %	Create a TCP/IP based server  on  the   given  Port,  so you can

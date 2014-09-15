@@ -43,7 +43,7 @@
 :- use_module(library(shlib)).
 
 /** <module> Unix specific operations
-@ingroup SWILibrary
+    @ingroup SWIclib
 
 The library(unix) library provides the commonly  used Unix primitives to
 deal with process management.  These  primitives   are  useful  for many

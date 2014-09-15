@@ -37,7 +37,11 @@
 
 :- use_foreign_library(foreign(crypt), install_crypt).
 
-%	crypt(+Passwd, ?Encripted).
+/** <module> Encrypt a passsword
+    @ingroup SWIclib
+ */
+
+%%	crypt(+Passwd, ?Encripted).
 %
 %	Used to test an encrypted passwd or create one.  In the latter
 %	case, the first 2 letter must be instantiated

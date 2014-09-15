@@ -52,6 +52,10 @@
 	  ]).
 :- use_module(library(shlib)).
 
+/** <module> Socket routines
+ *  @ingroup SWIclib
+ */
+
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 These predicates are documented in the source-distribution of the package
 `clib'.  See also the SWI-Prolog home-page at http://www.swi-prolog.org

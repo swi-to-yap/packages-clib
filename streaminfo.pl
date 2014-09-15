@@ -31,6 +31,10 @@
 	  [ stream_info/1		% +Stream
 	  ]).
 
+/** <module> Stream Information
+  *  @ingroup SWIclib
+  */
+
 :- use_foreign_library(foreign(streaminfo)).
 
 %%	stream_info(+Stream) is det.

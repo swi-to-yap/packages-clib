@@ -39,6 +39,10 @@
 :- use_module(library(quintus)).
 :- use_module(library(debug)).
 
+/** <module> Stream Pool Management
+ *  @ingroup socket
+ */
+
 :- meta_predicate
 	add_stream_to_pool(+, :).
 
@@ -47,7 +51,7 @@
 :- dynamic
 	pool/2.				% Stream, Action
 
-%	add_stream_to_pool(+Stream :Goal)
+%%	add_stream_to_pool(+Stream :Goal)
 %
 %	Call Goal whenever there is input on Stream.
 
@@ -58,14 +62,14 @@ add_stream_to_pool(Stream, Action) :-
 register_stream(Stream, Goal) :-
 	assert(pool(Stream, Goal)).
 
-%	delete_stream_from_pool(+Stream)
+%%	delete_stream_from_pool(+Stream)
 %
 %	Retract stream from the pool
 
 delete_stream_from_pool(Stream) :-
 	retractall(pool(Stream, _)).
 
-%	close_stream_pool
+%%	close_stream_pool
 
 close_stream_pool :-
 	(   retract(pool(Stream, _)),
@@ -74,7 +78,7 @@ close_stream_pool :-
 	;   true
 	).
 
-%	dispatch_stream_pool(+TimeOut)
+%%	dispatch_stream_pool(+TimeOut)
 %
 %	Wait for input on one or more streams and handle that.  Wait for
 %	at most TimeOut seconds (0 means infinite).
@@ -105,7 +109,7 @@ action(Stream) :-
 			  goal_failed(Action, stream_pool))
 	).
 
-%	stream_pool_main_loop
+%%	stream_pool_main_loop
 %
 %	Keep handling input from the streams in the pool until they have
 %	all died away.

@@ -48,7 +48,7 @@
 :- use_foreign_library(foreign(uid)).
 
 /** <module> User and group management on Unix systems
-@ingroup SWILibrary
+    @ingroup SWIclib
 
 This module provides and interface  to   user  and  group information on
 Posix systems. In addition, it allows for changing user and group ids.

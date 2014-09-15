@@ -52,6 +52,10 @@
 	alarm_at(+, 0, -, +),
 	current_alarm(?, :, ?, ?).
 
+/** <module> SWI-style timer/alarms
+    @ingroup SWIclib
+*/
+
 %%	alarm(+Time, :Callable, -Id) is det.
 %%	alarm(+Time, :Callable, -Id, +Options) is det.
 %
