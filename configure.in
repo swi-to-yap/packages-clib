@@ -45,21 +45,29 @@ AC_CHECK_FUNC(gethostent, [], [
 dnl Configure UUID library.  We use the OSSP UUID library, but it seems
 dnl to be installed in various places.
 
-if test x"$CLIB_LIBUUID" = "x"; then
-AC_CHECK_LIB(ossp-uuid, uuid_create,
-	     [ CLIB_LIBUUID=-lossp-uuid
-	     ])
-fi
-if test x"$CLIB_LIBUUID" = "x"; then
-AC_CHECK_LIB(uuid, uuid_create,
-	     [ CLIB_LIBUUID=-luuid
-	     ])
-fi
-if test x"$CLIB_LIBUUID" = "x"; then
-  AC_MSG_WARN([ Cannot find libossp-uuid or libuuid -- dropping uuid.pl])
-else
+AC_CHECK_FUNC(uuid_create,
+	      [has_uuid=true],
+	      [
+	      if test x"$CLIB_LIBUUID" = "x"; then
+	      AC_CHECK_LIB(uuid, uuid_create,
+	      [ CLIB_LIBUUID=-luuid
+	        has_uuid=true
+	      ])
+	      fi
+	      if test x"$has_uuid" = "x"; then
+  	      AC_MSG_WARN([ Cannot find libossp-uuid or libuuid -- dropping uuid.pl])
+	      fi
+	      ]
+	      )
+if test x"$has_uuid" != "x"; then
   if test x"$UUID_H" = "x"; then
   AC_CHECK_HEADER(ossp/uuid.h,
+		  [ UUID_H=ossp/uuid.h ],
+		  [],
+		  [/*first*/])
+  fi
+  if test x"$UUID_H" = "x"; then
+  AC_CHECK_HEADER(uuid/uuid.h,
 		  [ UUID_H=ossp/uuid.h ],
 		  [],
 		  [/*first*/])
