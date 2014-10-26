@@ -66,9 +66,9 @@ if test x"$has_uuid" != "x"; then
 		  [],
 		  [/*first*/])
   fi
-  if test x"$UUID_H" = "x"; then
+  if test x"$UUID_H" = "x" -a ! -d /usr/include/uuid; then
   AC_CHECK_HEADER(uuid/uuid.h,
-		  [ UUID_H=ossp/uuid.h ],
+		  [ UUID_H=uuid/uuid.h ],
 		  [],
 		  [/*first*/])
   fi
