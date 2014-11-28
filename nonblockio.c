@@ -170,9 +170,9 @@ tcp_debug(void);
 #endif
 
 #ifdef CLIB_MSG_DONTWAIT
-#define CLIB_CLIB_MSG_DONTWAIT CLIB_MSG_DONTWAIT
+#define CLIB_MSG_DONTWAIT MSG_DONTWAIT
 #else
-#define CLIB_CLIB_MSG_DONTWAIT 0
+#define CLIB_MSG_DONTWAIT 0
 #endif
 
 #ifndef INADDR_LOOPBACK
@@ -2462,7 +2462,7 @@ nbio_recvfrom(int socket, void *buf, size_t bufSize, int flags,
 #else /*__WINDOWS__*/
 
   for(;;)
-  { if ( (flags & CLIB_CLIB_MSG_DONTWAIT) == 0 && !wait_socket(s) )
+  { if ( (flags & CLIB_MSG_DONTWAIT) == 0 && !wait_socket(s) )
     { errno = EPLEXCEPTION;
       return -1;
     }
