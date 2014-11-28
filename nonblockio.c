@@ -169,6 +169,17 @@ tcp_debug(void);
 #define SOCKET_ERROR (-1)
 #endif
 
+#ifdef CLIB_MSG_DONTWAIT
+#define CLIB_CLIB_MSG_DONTWAIT CLIB_MSG_DONTWAIT
+#else
+#define CLIB_CLIB_MSG_DONTWAIT 0
+#endif
+
+#ifndef INADDR_LOOPBACK
+#define INADDR_LOOPBACK ((uint32_t)0x7f000001) /* INET 127.0.0.1 */
+#endif
+
+
 #ifdef _REENTRANT
 #if __WINDOWS__
 static CRITICAL_SECTION mutex;
@@ -2451,7 +2462,7 @@ nbio_recvfrom(int socket, void *buf, size_t bufSize, int flags,
 #else /*__WINDOWS__*/
 
   for(;;)
-  { if ( (flags & MSG_DONTWAIT) == 0 && !wait_socket(s) )
+  { if ( (flags & CLIB_CLIB_MSG_DONTWAIT) == 0 && !wait_socket(s) )
     { errno = EPLEXCEPTION;
       return -1;
     }
@@ -2464,7 +2475,7 @@ nbio_recvfrom(int socket, void *buf, size_t bufSize, int flags,
 	return -1;
       }
 
-      if((flags & MSG_DONTWAIT) != 0)
+      if((flags & CLIB_MSG_DONTWAIT) != 0)
         break;
 
       continue;

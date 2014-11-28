@@ -25,7 +25,9 @@
 #include <config.h>
 #endif
 
+#ifndef _ISOC99_SOURCE
 #define _ISOC99_SOURCE
+#endif
 #define USE_SHA256 1
 
 #include <SWI-Prolog.h>

@@ -26,7 +26,7 @@
 #include <config.h>
 #endif
 
-#ifdef DEFINE_XOPEN_SOURCE
+#if defined( DEFINE_XOPEN_SOURCE ) && !defined( XOPEN_SOURCE )
 #define _XOPEN_SOURCE
 #endif
 
