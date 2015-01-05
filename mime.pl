@@ -39,7 +39,7 @@
 :- license(gpl).
 
 /** <module> Parse MIME documents
-    @ingroup SWILibrary
+    @ingroup swi
 
 This module defines an interface to   the rfc2045 (MIME) parsing library
 by Double Precision, Inc, part of the   maildrop system. This library is

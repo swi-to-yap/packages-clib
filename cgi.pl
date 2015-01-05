@@ -37,7 +37,7 @@
 :- use_foreign_library(foreign(cgi), install_cgi).
 
 /** <module> Simple CGI form
-    @ingroup SWILibrary
+    @ingroup swi
 
 Below is a very simple CGI script  that prints the passed parameters. To
 test it, compile this program using the   command below, copy it to your

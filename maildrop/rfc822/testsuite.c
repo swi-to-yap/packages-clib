@@ -11,13 +11,13 @@ static const char rcsid[]="$Id$";
 
 static void print_func(char c, void *p)
 {
-	p=p;
+	//p=p;
 	putchar(c);
 }
 
 static void print_separator(const char *s, void *p)
 {
-	p=p;
+	//p=p;
 	printf("%s", s);
 }
 
