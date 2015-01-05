@@ -37,10 +37,7 @@ static unsigned char itoa64[] =		/* 0 ... 63 => ascii - 64 */
 	"./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 static void
-to64(s, v, n)
-	char *s;
-	unsigned long v;
-	int n;
+to64(char *s, unsigned long v, int n)
 {
 	while (--n >= 0) {
 		*s++ = itoa64[v&0x3f];

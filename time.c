@@ -228,7 +228,7 @@ Allocate the event, maintaining a time-sorted list of scheduled events.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 static Event
-allocEvent()
+allocEvent(void)
 { Event ev = malloc(sizeof(*ev));
 
   if ( !ev )
@@ -353,7 +353,7 @@ freeEvent(Event ev)
 
 
 static void
-cleanupHandler()
+cleanupHandler(void)
 { if ( signal_function_set )
   { signal_function_set = FALSE;
     PL_signal(SIG_TIME, signal_function);
@@ -362,7 +362,7 @@ cleanupHandler()
 
 
 static void
-installHandler()
+installHandler(void)
 { if ( !signal_function_set )
   { signal_function = PL_signal(SIG_TIME|PL_SIGSYNC, on_alarm);
     signal_function_set = TRUE;

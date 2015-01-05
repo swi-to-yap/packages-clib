@@ -11,7 +11,7 @@
 
 static void start_rwprep(struct rfc2045 *);
 static void do_rwprep(const char *, size_t);
-static void end_rwprep();
+static void end_rwprep(void);
 
 static struct rfc2045ac rfc2045acprep={
 	&start_rwprep,
@@ -102,6 +102,6 @@ static void do_rwprep(const char * p, size_t n)
 		}
 }
 
-static void end_rwprep()
+static void end_rwprep(void)
 {
 }

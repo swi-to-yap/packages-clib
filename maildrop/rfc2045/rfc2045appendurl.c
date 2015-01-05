@@ -18,7 +18,7 @@
 #include	<ctype.h>
 #include	"rfc2045.h"
 
-extern void rfc2045_enomem();
+extern void rfc2045_enomem(void);
 
 /*
 ** ---------------------------------------------------------------------

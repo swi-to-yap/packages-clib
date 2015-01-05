@@ -45,12 +45,12 @@ static char *fdout_ptr;
 static size_t fdout_left;
 
 /* Quoted printable encoding */
-static void qpe_start();
+static void qpe_start(void);
 static int qpe_do(const char *, size_t, void *);
-static void qpe_end();
+static void qpe_end(void);
 static int conv_err;
 
-static int fdout_flush()
+static int fdout_flush(void)
 {
 int	n=fdout_ptr-fdout_buf;
 int	i=0;

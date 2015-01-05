@@ -22,7 +22,7 @@
 
 /* $Id$ */
 
-extern void rfc2045_enomem();
+extern void rfc2045_enomem(void);
 
 int rfc2045_ac_check(struct rfc2045 *p, int rwmode)
 {
