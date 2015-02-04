@@ -6,12 +6,12 @@
 #
 # License: LGPL
 #
-# Author: Jan Wielemaker (J.Wielemaker@vu.nl)
+# Author: Jan Wielemaker (J.Wielem1aker@vu.nl)
 ################################################################
 
 PACKAGE=clib
 DOC=clib
-PKGCFLAGS=-I$(srcdir) -I$(srcdir)/maildrop/rfc2045 -I$(srcdir)/maildrop/rfc822
+PKGCFLAGS=-I$(srcdir) -I$(srcdir)/maildrop/rfc2045 -I$(srcdir)/maildrop/rfc822 
 include ../Makefile.defs
 # COFLAGS=-gdwarf-2 -g3
 

@@ -12,6 +12,7 @@ AC_SUBST(CLIB_NETLIBS)
 AC_SUBST(CLIB_CRYPTLIBS)
 AC_SUBST(CLIB_CRYPTOBJ)
 AC_SUBST(CLIB_LIBUUID)
+AC_SUBST(CLIB_FLAGS_LIBUUID)
 
 m4_ifdef([HAS_TOP],[m4_ignore],[
 m4_include([../ac_swi_c.m4])
@@ -43,14 +44,62 @@ AC_CHECK_FUNC(gethostent, [], [
                       "Define if you have the nsl library (-lnsl)."))])
 
 dnl Configure UUID library.  We use the OSSP UUID library, but it seems
-dnl to be installed in various places.
+dl to be installed in various places.
 
+# brew in OSX
+if test -d /usr/local/opt/ossp-uuid; then		  
+  CPPFLAGS="$CPPFLAGS -I /usr/local/opt/ossp-uuid/include"		  
+  UUID_LIB_PATH="-L /usr/local/opt/ossp-uuid/lib"		  
+fi
+
+# /opt
+if test -d /opt/include/ossp; then		  
+  CPPFLAGS="$CPPFLAGS -I /opt/include"		  
+  UUID_LIB_PATH="-L /opt/lib"		  
+fi
+
+# /usr/local
+if test -d /opt/include/ossp; then		  
+  CPPFLAGS="$CPPFLAGS -I /opt/include"		  
+  UUID_LIB_PATH="-L /opt/lib"		  
+fi
+
+if test x"$UUID_H" = "x"; then
+  AC_CHECK_HEADER(ossp/uuid.h,
+		  [ UUID_H=ossp/uuid.h
+		    has_uuid=true],
+		  [],
+		  [/*first*/])
+fi
+if test x"$UUID_H" = "x" -a ! -d /usr/include/uuid; then
+  AC_CHECK_HEADER(uuid/uuid.h,
+		  [ UUID_H=uuid/uuid.h
+		    has_uuid=true ],
+		  [],
+		  [/*first*/])
+fi
+if test x"$UUID_H" = "x"; then
+  AC_CHECK_HEADER(uuid.h,
+		  [ UUID_H=uuid.h
+		    has_uuid=true ],
+		  [],
+		  [/*first*/])
+fi
+if test x"$UUID_H" = "x"; then
+    AC_MSG_WARN([ Cannot find uuid.h -- dropping uuid.pl])
+else
+    AC_DEFINE_UNQUOTED([UUID_H], [<$UUID_H>],
+	      [ Define to name of the UUID header file. ])
+    has_uuid=true 
+fi
+
+if test x"$has_uuid" != "x"; then
 AC_CHECK_FUNC(uuid_create,
 	      [has_uuid=true],
 	      [
 	      if test x"$CLIB_LIBUUID" = "x"; then
 	      AC_CHECK_LIB(uuid, uuid_create,
-	      [ CLIB_LIBUUID=-luuid
+	      [ CLIB_LIBUUID="$UUID_LIB_PATH -luuid"
 	        has_uuid=true
 	      ])
 	      fi
@@ -59,32 +108,6 @@ AC_CHECK_FUNC(uuid_create,
 	      fi
 	      ]
 	      )
-if test x"$has_uuid" != "x"; then
-  if test x"$UUID_H" = "x"; then
-  AC_CHECK_HEADER(ossp/uuid.h,
-		  [ UUID_H=ossp/uuid.h ],
-		  [],
-		  [/*first*/])
-  fi
-  if test x"$UUID_H" = "x" -a ! -d /usr/include/uuid; then
-  AC_CHECK_HEADER(uuid/uuid.h,
-		  [ UUID_H=uuid/uuid.h ],
-		  [],
-		  [/*first*/])
-  fi
-  if test x"$UUID_H" = "x"; then
-  AC_CHECK_HEADER(uuid.h,
-		  [ UUID_H=uuid.h ],
-		  [],
-		  [/*first*/])
-  fi
-  if test x"$UUID_H" = "x"; then
-    AC_MSG_WARN([ Cannot find uuid.h -- dropping uuid.pl])
-  else
-    AC_DEFINE_UNQUOTED([UUID_H], [<$UUID_H>],
-	      [ Define to name of the UUID header file. ])
-    CLIB_TARGETS="$CLIB_TARGETS uuid.$SO"
-  fi
 fi
 
 
