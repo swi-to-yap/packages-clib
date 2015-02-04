@@ -11,8 +11,14 @@
 #include	<sys/types.h>
 
 #include	"rfc2045.h"
-#if	HAVE_UNISTD_H
-#include	<unistd.h>
+#if	HAVE_SYS_TYPES_H
+#include	<sys/types.h>
+#endif
+#if     HAVE_SYS_UIO_H
+#include        <sys/uio.h>
+#endif
+#if     HAVE_UNISTD_H
+#include        <unistd.h>
 #endif
 #ifdef __WINDOWS__
 #include <io.h>
