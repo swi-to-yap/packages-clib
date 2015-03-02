@@ -12,6 +12,7 @@ AC_SUBST(CLIB_NETLIBS)
 AC_SUBST(CLIB_CRYPTLIBS)
 AC_SUBST(CLIB_CRYPTOBJ)
 AC_SUBST(CLIB_LIBUUID)
+AC_SUBST(CLIB_CPPFLAGS)
 
 m4_ifdef([HAS_TOP],[m4_ignore],[
 m4_include([../ac_swi_c.m4])
@@ -184,6 +185,7 @@ if echo "$CLIB_PLTARGETS" | grep socket.pl 2>&1 >/dev/null; then
   CLIB_PLTARGETS="$CLIB_PLTARGETS streampool.pl"
 fi
 
+CLIB_CPPFLAGS="$CPPFLAGS"
 
 m4_ifdef([HAS_TOP],[m4_ignore],[
 AC_OUTPUT(Makefile)
