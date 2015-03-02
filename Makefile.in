@@ -11,7 +11,7 @@
 
 PACKAGE=clib
 DOC=clib
-PKGCFLAGS=-I$(srcdir) -I$(srcdir)/maildrop/rfc2045 -I$(srcdir)/maildrop/rfc822 
+PKGCFLAGS=-I$(srcdir) -I$(srcdir)/maildrop/rfc2045 -I$(srcdir)/maildrop/rfc822 @CLIB_CPPFLAGS@
 include ../Makefile.defs
 # COFLAGS=-gdwarf-2 -g3
 
