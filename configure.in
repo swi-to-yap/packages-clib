@@ -44,7 +44,7 @@ AC_CHECK_FUNC(gethostent, [], [
                       "Define if you have the nsl library (-lnsl)."))])
 
 dnl Configure UUID library.  We use the OSSP UUID library, but it seems
-dl to be installed in various places.
+dnl to be installed in various places.
 
 # brew in OSX
 if test -d /usr/local/opt/ossp-uuid; then		  
