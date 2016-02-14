@@ -1,11 +1,10 @@
-/*  $Id$
-
-    Part of SWI-Prolog
+/*  Part of SWI-Prolog
 
     Author:        Jan Wielemaker
-    E-mail:        J.Wielemaker@uva.nl
+    E-mail:        J.Wielemaker@vu.nl
     WWW:           http://www.swi-prolog.org
-    Copyright (C): 1985-2009, University of Amsterdam
+    Copyright (C): 1985-2014, University of Amsterdam
+			      VU University Amsterdam
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
@@ -59,6 +58,9 @@
 #define __USE_GNU
 #endif
 
+#ifdef __WINDOWS__
+#undef ETIMEDOUT
+#endif
 #include <pthread.h>
 
 typedef enum
@@ -393,6 +395,35 @@ cleanup(int rc, void *arg)
 }
 
 
+static void
+cleanup_thread(void *data)
+{ schedule *sched = TheSchedule();
+
+  (void)data;
+
+  if ( sched->first )
+  { Event ev, next;
+    pthread_t self = pthread_self();
+
+    LOCK();
+    for( ev=sched->first; ev; ev=next )
+    { next = ev->next;
+
+      if ( pthread_equal(self, ev->thread_id) )
+      { DEBUG(1, Sdprintf("[%d] removing alarm %ld at exit\n",
+			  PL_thread_self(), (long)(intptr_t)ev));
+	if ( sched->scheduled == ev )
+	  ev->flags |= EV_DONE;
+	freeEvent(ev);
+      }
+    }
+    UNLOCK();
+
+    pthread_cond_signal(&cond);
+  }
+}
+
+
 static Event
 nextEvent(schedule *sched)
 { Event ev;
@@ -521,7 +552,8 @@ alarm_loop(void * closure)
 	case EINTR:
 	  goto retry_timed_wait;
 	default:
-	  Sdprintf("alarm/4: pthread_cond_timedwait(): %s\n", strerror(rc));
+	  Sdprintf("alarm/4: pthread_cond_timedwait(): %d (%s)\n",
+		   rc, strerror(rc));
 	  assert(0);
       }
     } else
@@ -536,7 +568,8 @@ alarm_loop(void * closure)
 	case 0:
 	  continue;
 	default:
-	  Sdprintf("alarm/4: pthread_cond_timedwait(): %s\n", strerror(rc));
+	  Sdprintf("alarm/4: pthread_cond_timedwait(): %d (%s)\n",
+		   rc, strerror(rc));
 	  assert(0);
       }
     }
@@ -756,7 +789,7 @@ alarm4_gen(time_abs_rel abs_rel, term_t time, term_t callable,
 
     while( PL_get_list(tail, head, tail) )
     { atom_t name;
-      int arity;
+      size_t arity;
 
       if ( PL_get_name_arity(head, &name, &arity) )
       { if ( arity == 1 )
@@ -789,7 +822,8 @@ alarm4_gen(time_abs_rel abs_rel, term_t time, term_t callable,
   if ( !PL_get_float(time, &t) )
     return pl_error(NULL, 0, NULL, ERR_ARGTYPE, 1,
 		    time, "number");
-
+  if ( !PL_strip_module(callable, &m, callable) )
+    return FALSE;
 
   if ( !(ev = allocEvent()) )
     return FALSE;
@@ -805,7 +839,6 @@ alarm4_gen(time_abs_rel abs_rel, term_t time, term_t callable,
   }
 
   ev->flags = flags;
-  PL_strip_module(callable, &m, callable);
   ev->module = m;
   ev->goal = PL_record(callable);
 
@@ -1030,6 +1063,7 @@ install_time(void)
 
   installHandler();
   PL_on_halt(cleanup, NULL);
+  PL_thread_at_exit(cleanup_thread, NULL, TRUE);
 }
 
 

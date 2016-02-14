@@ -75,6 +75,10 @@ pl_rlimit(term_t what, term_t old, term_t new)
     else if ( strcmp(s, "rss") == 0 )
       resource = RLIMIT_RSS;
 #endif
+#ifdef RLIMIT_AS
+    else if ( strcmp(s, "as") == 0 )
+      resource = RLIMIT_AS;
+#endif
 #ifdef RLIMIT_MEMLOCK
     else if ( strcmp(s, "memlock") == 0 )
       resource = RLIMIT_MEMLOCK;
@@ -108,7 +112,7 @@ pl_rlimit(term_t what, term_t old, term_t new)
       if ( PL_get_int64(new, &n) )
       {
       set:
-	if ( rlim.rlim_cur != (unsigned long) n )
+	if ( rlim.rlim_cur != (rlim_t) n )
 	{ rlim.rlim_cur = n;
 	  if ( !setrlimit(resource, &rlim) == 0 )
 	    return pl_error("rlimit", 3, NULL, ERR_ERRNO, errno, "set", "resource_limit", what);

@@ -36,11 +36,17 @@
 	    size_memory_file/3,		% +Handle, -Size, +Encoding
 	    open_memory_file/3,		% +Handle, +Mode, -Stream
 	    open_memory_file/4,		% +Handle, +Mode, -Stream, +Options
+	    insert_memory_file/3,	% +Handle, +Position, +Data
+	    delete_memory_file/3,	% +Handle, +Position, +Length
 	    atom_to_memory_file/2,	% +Atom, -Handle
 	    memory_file_to_atom/2,	% +Handle, -Atom
 	    memory_file_to_codes/2,	% +Handle, -CodeList
+	    memory_file_to_string/2,	% +Handle, -String
 	    memory_file_to_atom/3,	% +Handle, -Atom, +Encoding
 	    memory_file_to_codes/3,	% +Handle, -CodeList, +Encoding
+	    memory_file_to_string/3,	% +Handle, -String, +Encoding
+	    memory_file_substring/5,	% +Handle, +Before, +Length, +After, -String
+	    memory_file_line_position/4,% +Handle, ?Line, ?ListPos, ?Offset
 	    utf8_position_memory_file/3 % +Handle, -Here, -Size
 	  ]).
 
@@ -48,6 +54,13 @@
 
 :- use_foreign_library(foreign(memfile)).
 
+<<<<<<< HEAD
 /** <module> Memory File
     @ingroup SWIclib
  */
+=======
+:- predicate_options(open_memory_file/4, 4,
+		     [ encoding(encoding),
+		       free_on_close(boolean)
+		     ]).
+>>>>>>> 47df40fe09ec8bb62b42e9e840a257e7315e3bff

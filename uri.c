@@ -3,7 +3,7 @@
     Author:        Jan Wielemaker
     E-mail:        J.Wielemaker@cs.vu.nl
     WWW:           http://www.swi-prolog.org
-    Copyright (C): 2009-2012, VU University Amsterdam
+    Copyright (C): 2009-2015, VU University Amsterdam
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -120,9 +120,9 @@ domain_error(const char *expected, term_t found)
 		 *	      ESCAPING		*
 		 *******************************/
 
-#define	ESC_PATH       (CH_PCHAR|CH_EX_PATH)
-#define	ESC_QUERY      (CH_UNRESERVED|CH_PSUBDELIM|CH_EX_PCHAR|CH_EX_QF)
-#define	ESC_QVALUE     (CH_UNRESERVED|CH_QSUBDELIM|CH_EX_PCHAR|CH_EX_QF)
+#define	ESC_PATH       (CH_UNRESERVED|CH_SUBDELIM|CH_EX_PATH)
+#define	ESC_QUERY      (CH_UNRESERVED|CH_PSUBDELIM|CH_EX_QF)
+#define	ESC_QVALUE     (CH_UNRESERVED|CH_QSUBDELIM|CH_EX_QF)
 #define	ESC_QNAME      (CH_PCHAR)
 #define	ESC_FRAGMENT   (CH_PCHAR|CH_EX_QF)
 #define	ESC_AUTH       (CH_PCHAR)
@@ -176,8 +176,8 @@ fill_flags()
     set_flags("!$&'()*,;=",  CH_PSUBDELIM); /* = CH_SUBDELIM - "+"  */
     set_flags("!$'()*,",     CH_QSUBDELIM); /* = CH_SUBDELIM - "&=+" */
     set_flags(":@",          CH_EX_PCHAR);
-    set_flags("/",           CH_EX_PATH);
-    set_flags("/?",          CH_EX_QF);
+    set_flags("/@",          CH_EX_PATH);
+    set_flags("/?@",         CH_EX_QF);
     set_flags("+-.",	     CH_EX_SCHEME);
 
     set_flags("/:?#&=", CH_URL);
@@ -189,7 +189,7 @@ fill_flags()
 #define no_escape(c, f) \
 	(((c) < 128) && (charflags[(int)c] & (f)))
 #define iri_no_escape(c, f) \
-	(((c) > 128) || (c) == '%' || (charflags[(int)c] & (f)))
+	(((c) >= 128) || (c) == '%' || (charflags[(int)c] & (f)))
 
 
 /* hex(const pl_wchar_t *in, int digits, int *value)
@@ -806,7 +806,7 @@ uri_is_global(term_t URI)
     fill_flags();
 
     e = skip_not(s, end, L":/?#");
-    if ( e > s && e[0] == ':' )
+    if ( e > s+1 && e[0] == ':' )
     { r.start = s;
       r.end = e;
       if ( range_is_unreserved(&r, FALSE, CH_SCHEME) )
@@ -881,7 +881,7 @@ unify_query_string_components(term_t list, size_t len, const pl_wchar_t *qs)
 
 
 static int
-add_encoded_term_charbuf(charbuf *cb, term_t value, int flags)
+add_encoded_term_charbuf(charbuf *cb, term_t value, int iri, int flags)
 { pl_wchar_t *s;
   range r;
   size_t len;
@@ -891,7 +891,7 @@ add_encoded_term_charbuf(charbuf *cb, term_t value, int flags)
 
   r.start = s;
   r.end = r.start+len;
-  if ( range_is_unreserved(&r, TRUE, flags) )
+  if ( range_is_unreserved(&r, iri, flags) )
   { add_nchars_charbuf(cb, r.end-r.start, r.start);
   } else
   { const pl_wchar_t *s = r.start;
@@ -925,7 +925,7 @@ uri_query_components(term_t string, term_t list)
     init_charbuf(&out);
     while( PL_get_list(tail, head, tail) )
     { atom_t fname;
-      int arity;
+      size_t arity;
 
       if ( PL_is_functor(head, FUNCTOR_equal2) ||
 	   PL_is_functor(head, FUNCTOR_pair2) )
@@ -941,12 +941,12 @@ uri_query_components(term_t string, term_t list)
 
       if ( out.here != out.base )
 	add_charbuf(&out, '&');
-      if ( !add_encoded_term_charbuf(&out, nv+0, ESC_QNAME) )
+      if ( !add_encoded_term_charbuf(&out, nv+0, FALSE, ESC_QNAME) )
       { free_charbuf(&out);
 	return FALSE;
       }
       add_charbuf(&out, '=');
-      if ( !add_encoded_term_charbuf(&out, nv+1, ESC_QVALUE) )
+      if ( !add_encoded_term_charbuf(&out, nv+1, FALSE, ESC_QVALUE) )
       { free_charbuf(&out);
 	return FALSE;
       }
@@ -992,7 +992,7 @@ uri_encoded(term_t what, term_t qv, term_t enc)
     int rc;
 
     init_charbuf(&out);
-    if ( !add_encoded_term_charbuf(&out, qv, flags) )
+    if ( !add_encoded_term_charbuf(&out, qv, FALSE, flags) )
     { free_charbuf(&out);
       return FALSE;
     }

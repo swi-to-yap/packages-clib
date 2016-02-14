@@ -340,7 +340,7 @@ get_character_data()
 static int
 get_character_data(term_t from, char **data, size_t *len, int *malloced)
 { atom_t name;
-  int arity;
+  size_t arity;
   char *buf;
   size_t size;
 

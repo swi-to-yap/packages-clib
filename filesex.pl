@@ -3,7 +3,7 @@
     Author:        Jan Wielemaker
     E-mail:        J.Wielemaker@cs.vu.nl
     WWW:           http://www.swi-prolog.org
-    Copyright (C): 2002-2010, University of Amsterdam
+    Copyright (C): 2002-2015, University of Amsterdam
 			      Vu University Amsterdam
 
     This program is free software; you can redistribute it and/or
@@ -31,7 +31,7 @@
 :- module(files_ex,
 	  [ set_time_file/3,		% +File, -OldTimes, +NewTimes
 	    link_file/3,		% +OldPath, +NewPath, +Type
-	    relative_file_name/3,	% +AbsPath, +RelTo, -RelPath
+	    relative_file_name/3,	% ?AbsPath, +RelTo, ?RelPath
 	    directory_file_path/3,	% +Dir, +File, -Path
 	    copy_file/2,		% +From, +To
 	    make_directory_path/1,	% +Directory
@@ -83,7 +83,7 @@ implementations from this library is usually faster.
 %	current time.
 %
 %	    ==
-%	    ?- set_time_file(foo, [acess(Access)], []).
+%	    ?- set_time_file(foo, [access(Access)], []).
 %	    ?- set_time_file(foo, [], [modified(now)]).
 %	    ==
 
@@ -101,15 +101,19 @@ implementations from this library is usually faster.
 %		is unknown or not supported on the target OS.
 
 %%	relative_file_name(+Path:atom, +RelTo:atom, -RelPath:atom) is det.
+%%	relative_file_name(-Path:atom, +RelTo:atom, +RelPath:atom) is det.
 %
 %	True when RelPath is Path, relative to RelTo. Path and RelTo are
 %	first handed to absolute_file_name/2, which   makes the absolute
-%	*and* canonical. Below is an example:
+%	*and* canonical. Below are two examples:
 %
 %	==
 %	?- relative_file_name('/home/janw/nice',
 %			      '/home/janw/deep/dir/file', Path).
 %	Path = '../../nice'.
+%
+%	?- relative_file_name(Path, '/home/janw/deep/dir/file', '../../nice').
+%	Path = '/home/janw/nice'.
 %	==
 %
 %	@param	All paths must be in canonical POSIX notation, i.e.,
@@ -117,7 +121,8 @@ implementations from this library is usually faster.
 %		prolog_to_os_filename/2.
 %	@bug	This predicate is defined as a _syntactical_ operation.
 
-relative_file_name(Path, RelTo, RelPath) :-
+relative_file_name(Path, RelTo, RelPath) :- % +,+,-
+	nonvar(Path), !,
 	absolute_file_name(Path, AbsPath),
 	absolute_file_name(RelTo, AbsRelTo),
         atomic_list_concat(PL, /, AbsPath),
@@ -125,6 +130,13 @@ relative_file_name(Path, RelTo, RelPath) :-
         delete_common_prefix(PL, RL, PL1, PL2),
         to_dot_dot(PL2, DotDot, PL1),
         atomic_list_concat(DotDot, /, RelPath).
+relative_file_name(Path, RelTo, RelPath) :-
+	(   is_absolute_file_name(RelPath)
+	->  Path = RelPath
+	;   file_directory_name(RelTo, RelToDir),
+	    directory_file_path(RelToDir, RelPath, Path0),
+	    absolute_file_name(Path0, Path)
+	).
 
 delete_common_prefix([H|T01], [H|T02], T1, T2) :- !,
         delete_common_prefix(T01, T02, T1, T2).
@@ -210,6 +222,10 @@ make_directory_path(Dir) :-
 make_directory_path_2(Dir) :-
 	exists_directory(Dir), !.
 make_directory_path_2(Dir) :-
+        atom_concat(RealDir, '/', Dir),
+        RealDir \== '', !,
+        make_directory_path_2(RealDir).
+make_directory_path_2(Dir) :-
 	Dir \== (/), !,
 	file_directory_name(Dir, Parent),
 	make_directory_path_2(Parent),
@@ -243,11 +259,15 @@ copy_directory_content(From, To, Entry) :-
 special(.).
 special(..).
 
-%%	delete_directory_and_contents(+Dir)
+%%	delete_directory_and_contents(+Dir) is det.
 %
-%	Recursively remove the directory Dir and  its contents. Use with
-%	care!
+%	Recursively remove the directory Dir and its contents. If Dir is
+%	a symbolic link or symbolic links   inside  Dir are encountered,
+%	the links are removed rather than their content. Use with care!
 
+delete_directory_and_contents(Dir) :-
+	read_link(Dir, _, _), !,
+	delete_file(Dir).
 delete_directory_and_contents(Dir) :-
 	directory_files(Dir, Files),
 	maplist(delete_directory_contents(Dir), Files),
@@ -265,7 +285,9 @@ delete_directory_contents(Dir, Entry) :-
 %%	delete_directory_contents(+Dir) is det.
 %
 %	Remove all content from  directory   Dir,  without  removing Dir
-%	itself.
+%	itself. Similar to delete_directory_and_contents/2,  if symbolic
+%	links are encountered in Dir, the  links are removed rather than
+%	their content.
 
 delete_directory_contents(Dir) :-
 	directory_files(Dir, Files),

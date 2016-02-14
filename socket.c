@@ -1,11 +1,10 @@
-/*  $Id$
-
-    Part of SWI-Prolog
+/*  Part of SWI-Prolog
 
     Author:        Jan Wielemaker
-    E-mail:        jan@swi.psy.uva.nl
+    E-mail:        J.Wielemaker@vu.nl
     WWW:           http://www.swi-prolog.org
-    Copyright (C): 1985-2002, University of Amsterdam
+    Copyright (C): 1985-2015, University of Amsterdam
+			      VU University Amsterdam
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -144,6 +143,7 @@ pl_host_to_address(term_t Host, term_t Ip)
 	default:
 	  rc = FALSE;
 	  assert(0);
+	  rc = FALSE;
       }
 
       freeaddrinfo(res);
@@ -169,7 +169,7 @@ static foreign_t
 pl_setopt(term_t Socket, term_t opt)
 { int socket;
   atom_t a;
-  int arity;
+  size_t arity;
 
   if ( !tcp_get_socket(Socket, &socket) )
     return FALSE;
@@ -284,6 +284,7 @@ udp_receive(term_t Socket, term_t Data, term_t From, term_t options)
   char smallbuf[UDP_DEFAULT_BUFSIZE];
   char *buf = smallbuf;
   int bufsize = UDP_DEFAULT_BUFSIZE;
+  term_t varport = 0;
   ssize_t n;
   int as = PL_STRING;
   int rc;
@@ -295,7 +296,7 @@ udp_receive(term_t Socket, term_t Data, term_t From, term_t options)
 
     while(PL_get_list(tail, head, tail))
     { atom_t name;
-      int arity;
+      size_t arity;
 
       if ( PL_get_name_arity(head, &name, &arity) && arity == 1 )
       { _PL_get_arg(1, head, arg);
@@ -328,7 +329,7 @@ udp_receive(term_t Socket, term_t Data, term_t From, term_t options)
   }
 
   if ( !tcp_get_socket(Socket, &socket) ||
-       !nbio_get_sockaddr(From, &sockaddr) )
+       !nbio_get_sockaddr(From, &sockaddr, &varport) )
     return FALSE;
 
   if ( bufsize > UDP_DEFAULT_BUFSIZE )
@@ -372,7 +373,7 @@ udp_send(term_t Socket, term_t Data, term_t To, term_t Options)
     return FALSE;
 
   if ( !tcp_get_socket(Socket, &socket) ||
-       !nbio_get_sockaddr(To, &sockaddr) )
+       !nbio_get_sockaddr(To, &sockaddr, NULL) )
     return FALSE;
 
   if ( (n=nbio_sendto(socket, data,
@@ -419,7 +420,7 @@ pl_connect(term_t Socket, term_t Address)
   struct sockaddr_in sockaddr;
 
   if ( !tcp_get_socket(Socket, &sock) ||
-       !nbio_get_sockaddr(Address, &sockaddr) )
+       !nbio_get_sockaddr(Address, &sockaddr, NULL) )
     return FALSE;
 
   if ( nbio_connect(sock, (struct sockaddr*)&sockaddr, sizeof(sockaddr)) == 0 )
@@ -433,17 +434,18 @@ static foreign_t
 pl_bind(term_t Socket, term_t Address)
 { struct sockaddr_in sockaddr;
   int socket;
+  term_t varport = 0;
 
   memset(&sockaddr, 0, sizeof(sockaddr));
 
   if ( !tcp_get_socket(Socket, &socket) ||
-       !nbio_get_sockaddr(Address, &sockaddr) )
+       !nbio_get_sockaddr(Address, &sockaddr, &varport) )
     return FALSE;
 
   if ( nbio_bind(socket, (struct sockaddr*)&sockaddr, sizeof(sockaddr)) < 0 )
     return FALSE;
 
-  if ( PL_is_variable(Address) )
+  if ( varport )
   { SOCKET fd = nbio_fd(socket);
     struct sockaddr_in addr;
 #ifdef __WINDOWS__
@@ -454,7 +456,7 @@ pl_bind(term_t Socket, term_t Address)
 
     if ( getsockname(fd, (struct sockaddr *) &addr, &len) )
       return nbio_error(errno, TCP_ERRNO);
-    return PL_unify_integer(Address, ntohs(addr.sin_port));
+    return PL_unify_integer(varport, ntohs(addr.sin_port));
   }
 
   return TRUE;
@@ -543,6 +545,15 @@ is_socket_stream(IOSTREAM *s)
 }
 
 
+#ifndef SIO_GETPENDING
+static size_t
+Spending(IOSTREAM *s)
+{ if ( s->bufp < s->limitp )
+    return s->limitp - s->bufp;
+  return 0;
+}
+#endif
+
 static foreign_t
 tcp_select(term_t Streams, term_t Available, term_t timeout)
 { fd_set fds;
@@ -582,7 +593,7 @@ tcp_select(term_t Streams, term_t Available, term_t timeout)
 		      head, "socket_stream");
     }
 					/* check for input in buffer */
-    if ( s->bufp < s->limitp )
+    if ( Spending(s) > 0 )
     { if ( !PL_unify_list(available, ahead, available) ||
 	   !PL_unify(ahead, head) )
 	return FALSE;

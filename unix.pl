@@ -249,7 +249,7 @@ fork_exec(Command) :-
 %	The  detach_IO/1  should  be  called   only  once  per  process.
 %	Subsequent calls silently succeed without any side effects.
 %
-%	@see detach_IO/0.
+%	@see detach_IO/0 and library(syslog).
 
 %%	detach_IO is det.
 %
@@ -259,8 +259,8 @@ fork_exec(Command) :-
 %
 %	@compat	Older versions of this predicate only created this file
 %		if there was output.
-%	@tbd	If should be possible to use the syslog facilities for
-%		writing messages.
+%	@see	library(syslog) allows for sending output to the Unix
+%		logging service.
 
 detach_IO :-
 	current_prolog_flag(pid, Pid),
@@ -269,6 +269,37 @@ detach_IO :-
 	set_stream(Out, buffer(line)),
 	detach_IO(Out).
 
+:- if(current_predicate(prctl/1)).
+:- export(prctl/1).
+
+%%	prctl(+Option) is det.
+%
+%	Access to Linux process control operations.  Defines values for
+%	Option are:
+%
+%	  - set_dumpable(+Boolean)
+%	  Control whether the process is allowed to dump core. This
+%	  right is dropped under several uid and gid conditions.
+%	  - get_dumpable(-Boolean)
+%	  Get the value of the dumpable flag.
+
+:- endif.
+
+:- if(current_predicate(sysconf/1)).
+:- export(sysconf/1).
+
+%%	sysconf(+Conf) is semidet.
+%
+%	Access system configuration. See sysconf(1) for details. Conf is
+%	a term Config(Value), where Value is   always an integer. Config
+%	is the sysconf() name after removing   =_SC_=  and conversion to
+%	lowercase. Currently support the   following configuration info:
+%	=arg_max=,  =child_max=,  =clk_tck=,    =open_max=,  =pagesize=,
+%	=phys_pages=,     =avphys_pages=,     =nprocessors_conf=     and
+%	=nprocessors_onln=. Note that not all values may be supported on
+%	all operating systems.
+
+:- endif.
 
 		 /*******************************
 		 *	     MESSAGES		*

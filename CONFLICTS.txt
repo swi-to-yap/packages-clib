@@ -1,0 +1,50 @@
+root@gitlab:/devel/LogicmooDeveloperFramework/swipl-devel/contrib/clib# git pull swi-upstream master
+From https://github.com/SWI-Prolog/packages-clib
+ * branch            master     -> FETCH_HEAD
+Auto-merging uri.pl
+Auto-merging uri.c
+Auto-merging unix.pl
+Auto-merging unix.c
+Auto-merging uid.c
+Auto-merging time.pl
+CONFLICT (content): Merge conflict in time.pl
+Auto-merging time.c
+Auto-merging test_uri.pl
+Auto-merging test_socket.pl
+CONFLICT (content): Merge conflict in test_socket.pl
+Auto-merging test_memfile.pl
+CONFLICT (content): Merge conflict in test_memfile.pl
+Auto-merging test.pl
+Auto-merging syslog.c
+Auto-merging streaminfo.pl
+Auto-merging streaminfo.c
+CONFLICT (content): Merge conflict in streaminfo.c
+Auto-merging socket.pl
+CONFLICT (content): Merge conflict in socket.pl
+Auto-merging socket.c
+Auto-merging sha4pl.c
+Auto-merging rlimit.c
+Auto-merging readutil.c
+Auto-merging process.pl
+Auto-merging process.c
+Auto-merging nonblockio.c
+CONFLICT (content): Merge conflict in nonblockio.c
+Auto-merging mime.c
+Auto-merging memfile.pl
+CONFLICT (content): Merge conflict in memfile.pl
+Auto-merging memfile.c
+CONFLICT (content): Merge conflict in memfile.c
+Auto-merging form.c
+Auto-merging filesex.pl
+Auto-merging error.c
+Auto-merging crypt.c
+Auto-merging configure.in
+CONFLICT (content): Merge conflict in configure.in
+Auto-merging cgi.c
+CONFLICT (content): Merge conflict in cgi.c
+Auto-merging Makefile.in
+CONFLICT (content): Merge conflict in Makefile.in
+Automatic merge failed; fix conflicts and then commit the result.
+root@gitlab:/devel/LogicmooDeveloperFramework/swipl-devel/contrib/clib#
+
+

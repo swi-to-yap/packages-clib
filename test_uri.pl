@@ -78,6 +78,8 @@ test(normalise_iri, NormalIRI == 'http://a.b/a?x=1&y=2#aap') :-
 	uri_normalized_iri('http://a.b/a?x=1&y=2#aap', NormalIRI).
 test(normalise_iri, NormalIRI == 'http://a.b/a?x=1&y=2#aap%20noot') :-
 	uri_normalized_iri('http://a.b/a?x=1&y=2#aap+noot', NormalIRI).
+test(normalise_iri, NormalIRI == 'http://a.b:3020/') :-
+	uri_normalized_iri('http://a.b:3020/', NormalIRI).
 
 :- end_tests(iri).
 
@@ -122,15 +124,24 @@ test(query, X == '%3D%26') :-
 	uri_encoded(query_value, '=&', X).
 test(query, X == 'a%2Bb') :-
 	uri_encoded(query_value, 'a+b', X).
+test(query, X == 'a%3Ab') :-
+	uri_encoded(query_value, 'a:b', X).
 test(query, X == 'a b') :-
 	uri_encoded(query_value, X, 'a+b').
 test(path, X == 'a+b') :-
 	uri_encoded(path, 'a+b', X).
 test(path, X == 'a+b') :-
 	uri_encoded(path, X, 'a+b').
+test(path, X == 'a%3Ab') :-
+	uri_encoded(path, 'a:b', X).
 test(path, X == '=&') :-
 	uri_encoded(path, '=&', X).
 test(path, X == '/a%20b%3F') :-
 	uri_encoded(path, '/a b?', X).
+test(path, X == '%25') :-
+	uri_encoded(path, '%', X).
+test(path, X == '%C3%B6%C3%A4%C3%BC%C3%B5') :-
+	atom_codes(Path, [246, 228, 252, 245]),
+	uri_encoded(path, Path, X).
 
 :- end_tests(uri_encode).

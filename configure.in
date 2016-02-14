@@ -141,6 +141,16 @@ case "$CPP" in
 	;;
 	*) ACPP="$CPP"
 esac
+<<<<<<< HEAD
+=======
+( CC=$ACC; LD=$ALD; CPP=$ACPP; CFLAGS=$CFLAGS; LDFLAGS=$LDFLAGS;
+  export CC LD CFLAGS LDFLAGS
+
+  (cd maildrop/rfc822 && $SHELL ./configure --host=$host)
+  (cd maildrop/rfc2045 && $SHELL ./configure --host=$host)
+)
+AC_MSG_RESULT("Done")
+>>>>>>> 47df40fe09ec8bb62b42e9e840a257e7315e3bff
 
 AC_MSG_CHECKING(h_errno)
 AC_TRY_COMPILE(
@@ -158,14 +168,16 @@ AC_TRY_COMPILE(
 
 AC_CHECK_HEADERS(malloc.h alloca.h unistd.h sys/time.h fcntl.h utime.h)
 AC_CHECK_HEADERS(execinfo.h sys/resource.h crypt.h syslog.h)
-AC_CHECK_HEADERS(sys/types.h sys/wait.h sys/stat.h)
+AC_CHECK_HEADERS(sys/types.h sys/wait.h sys/stat.h sys/prctl.h)
 AC_CHECK_HEADERS(netinet/tcp.h crt_externs.h)
 
 AC_CHECK_SIZEOF(long, 4)
 AC_CHECK_SIZEOF(long long, 8)
 
 AC_CHECK_FUNCS(setsid strerror utime getrlimit strcasestr vfork _NSGetEnviron)
-AC_CHECK_FUNCS(pipe2)
+AC_CHECK_FUNCS(pipe2 prctl sysconf)
+AC_CHECK_FUNCS(mallinfo malloc_info open_memstream)
+
 AC_CHECK_TYPES(socklen_t, [], [],
 [
 #include <sys/types.h>
@@ -202,12 +214,57 @@ else
   AC_MSG_WARN([Cannot find getrlimit"()" -- dropping rlimit.pl])
 fi
 
+<<<<<<< HEAD
 CLIB_PLTARGETS=`echo $CLIB_TARGETS | sed -e "s/\.$SO/.pl/g" -e "s/files.pl/filesex.pl/"`
 if echo "$CLIB_PLTARGETS" | grep socket.pl 2>&1 >/dev/null; then
   CLIB_PLTARGETS="$CLIB_PLTARGETS streampool.pl"
 fi
 
 CLIB_CPPFLAGS="$CPPFLAGS"
+=======
+if test "$ac_cv_func_mallinfo" = "yes" -o \
+        \( "$ac_cv_func_malloc_info" = "yes" -a  \
+           "$ac_cv_func_open_memstream" = "yes" \) ; then
+  TARGETS="$TARGETS mallocinfo.$SO"
+fi
+
+PLTARGETS=`echo $TARGETS | sed -e "s/\.$SO/.pl/g" -e "s/files.pl/filesex.pl/"`
+if echo "$PLTARGETS" | grep socket.pl 2>&1 >/dev/null; then
+  PLTARGETS="$PLTARGETS streampool.pl"
+fi
+
+
+dnl setpgid support
+AC_CHECK_FUNC([setpgid],
+   AC_DEFINE(HAVE_SETPGID,1,[Define to 1 if you have the `setpgid' function.]))
+
+dnl setpgrp support
+AC_CHECK_FUNC([setpgrp],
+   AC_DEFINE(HAVE_SETPGRP,1,[Define to 1 if you have the `setpgrp' function.]))
+
+dnl AC_FUNC_SETPGRP does not work if cross compiling
+dnl Instead, assume we will have a prototype for setpgrp if cross compiling.
+if test "$cross_compiling" = no; then
+  AC_FUNC_SETPGRP
+else
+  AC_CACHE_CHECK([whether setpgrp takes no argument], ac_cv_func_setpgrp_void,
+    [AC_TRY_COMPILE([
+#include <unistd.h>
+], [
+  if (setpgrp(1,1) == -1)
+    exit (0);
+  else
+    exit (1);
+], ac_cv_func_setpgrp_void=no, ac_cv_func_setpgrp_void=yes)])
+if test $ac_cv_func_setpgrp_void = yes; then
+  AC_DEFINE(SETPGRP_VOID, 1)
+fi
+fi
+
+AC_OUTPUT(Makefile)
+
+
+>>>>>>> 47df40fe09ec8bb62b42e9e840a257e7315e3bff
 
 m4_ifdef([HAS_TOP],[m4_ignore],[
 AC_OUTPUT(Makefile)

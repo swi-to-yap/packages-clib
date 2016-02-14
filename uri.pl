@@ -3,7 +3,7 @@
     Author:        Jan Wielemaker
     E-mail:        J.Wielemaker@cs.vu.nl
     WWW:           http://www.swi-prolog.org
-    Copyright (C): 2009, VU University Amsterdam
+    Copyright (C): 2009-2015, VU University Amsterdam
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
@@ -85,9 +85,10 @@ processing tools.
 %	     12            3  4          5       6  7        8 9
 %	    ==
 %
-%	@param Components is a term uri_components(Scheme, Authority,
-%	Path, Search, Fragment).  See uri_data/3 for accessing this
-%	structure.
+%	@param Components is a   term  uri_components(Scheme, Authority,
+%	Path, Search, Fragment). If a URI  is *parsed*, i.e., using mode
+%	(+,-), components that are not   found are left _uninstantiated_
+%	(variable). See uri_data/3 for accessing this structure.
 
 %%	uri_data(?Field, +Components, ?Data) is semidet.
 %
@@ -156,7 +157,7 @@ uri_data(fragment,  uri_components(S, A, P, Q, _), F,
 %	==
 %	uri_is_global(URI) :-
 %		uri_components(URI, Components),
-%		uri_data(Components, scheme, Scheme),
+%		uri_data(scheme, Components, Scheme),
 %		nonvar(Scheme).
 %	==
 
@@ -266,7 +267,7 @@ uri_authority_data(port,     uri_authority(_, _, _, P), P).
 uri_file_name(URI, FileName) :-
 	nonvar(URI), !,
 	uri_components(URI, Components),
-	uri_data(scheme, Components, file),
+	uri_data(scheme, Components, File), File == file,
 	(   uri_data(authority, Components, '')
 	->  true
 	;   uri_data(authority, Components, localhost)
@@ -303,3 +304,24 @@ delete_leading_slash(Path, WinPath) :-
 	is_absolute_file_name(WinPath), !.
 :- endif.
 delete_leading_slash(Path, Path).
+
+
+		 /*******************************
+		 *	      SANDBOX		*
+		 *******************************/
+
+:- multifile sandbox:safe_primitive/1.
+
+sandbox:safe_primitive(uri:uri_components(_,_)).
+sandbox:safe_primitive(uri:uri_normalized(_,_)).
+sandbox:safe_primitive(uri:iri_normalized(_,_)).
+sandbox:safe_primitive(uri:uri_normalized_iri(_,_)).
+sandbox:safe_primitive(uri:uri_normalized(_,_,_)).
+sandbox:safe_primitive(uri:iri_normalized(_,_,_)).
+sandbox:safe_primitive(uri:uri_normalized_iri(_,_,_)).
+sandbox:safe_primitive(uri:uri_resolve(_,_,_)).
+sandbox:safe_primitive(uri:uri_is_global(_)).
+sandbox:safe_primitive(uri:uri_query_components(_,_)).
+sandbox:safe_primitive(uri:uri_authority_components(_,_)).
+sandbox:safe_primitive(uri:uri_encoded(_,_,_)).
+sandbox:safe_primitive(uri:uri_iri(_,_)).

@@ -1,11 +1,10 @@
-/*  $Id$
-
-    Part of SWI-Prolog
+/*  Part of SWI-Prolog
 
     Author:        Jan Wielemaker
-    E-mail:        jan@swi.psy.uva.nl
+    E-mail:        J.Wielemaker@vu.nl
     WWW:           http://www.swi-prolog.org
-    Copyright (C): 1985-2002, University of Amsterdam
+    Copyright (C): 2008-2015, University of Amsterdam
+			      VU University Amsterdam
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -105,13 +104,13 @@ pl_fork(term_t a0)
 
 static foreign_t
 pl_exec(term_t cmd)
-{ int argc;
+{ size_t argc;
   atom_t name;
 
   if ( PL_get_name_arity(cmd, &name, &argc) )
   { term_t a = PL_new_term_ref();
     char **argv = malloc(sizeof(char*) * (argc + 2));
-    int i;
+    size_t i;
 
     argv[0] = (char *)PL_atom_chars(name);
 
@@ -401,6 +400,110 @@ pl_detach_IO(term_t stream)
   return TRUE;
 }
 
+#if defined(HAVE_PRCTL) && defined(HAVE_SYS_PRCTL_H)
+#include <sys/prctl.h>
+
+static foreign_t
+pl_prctl(term_t option)
+{ atom_t name;
+  size_t arity;
+
+  if ( PL_get_name_arity(option, &name, &arity) )
+  { const char *opt = PL_atom_chars(name);
+    term_t a = PL_new_term_refs(4);
+
+    if ( arity <= 4 )
+    { size_t i;
+
+      for(i=0; i<arity; i++)
+	_PL_get_arg(i+1, option, a+i);
+
+      if ( strcmp(opt, "set_dumpable") == 0 && arity == 1 )
+      { int i;
+
+	if ( !PL_get_bool_ex(a+0, &i) )
+	  return FALSE;
+	if ( prctl(PR_SET_DUMPABLE, i, 0, 0, 0) >= 0 )
+	  return TRUE;
+	return pl_error("prctl", 1, NULL, ERR_ERRNO,
+			errno, "set_dumpable", "process", a+0);
+      } else if ( strcmp(opt, "get_dumpable") == 0 && arity == 1 )
+      { int rc = prctl(PR_GET_DUMPABLE, 0,0,0,0);
+
+	if ( rc >= 0 )
+	  return PL_unify_bool(a+0, rc);
+	return pl_error("prctl", 1, NULL, ERR_ERRNO,
+			errno, "get_dumpable", "process", a+0);
+      }
+    }
+
+    return PL_domain_error("prctl_option", option);
+  } else
+  { return PL_type_error("compound", option);
+  }
+}
+
+
+#else
+#undef HAVE_PRCTL
+#endif
+
+#ifdef HAVE_SYSCONF
+#include <unistd.h>
+
+struct conf
+{ int         code;
+  const char *name;
+};
+
+static const struct conf confs[] =
+{ {_SC_ARG_MAX, "arg_max" },
+  {_SC_CHILD_MAX, "child_max" },
+  {_SC_CLK_TCK, "clk_tck" },
+  {_SC_OPEN_MAX, "open_max" },
+  {_SC_PAGESIZE, "pagesize" },
+#ifdef _SC_PHYS_PAGES
+  {_SC_PHYS_PAGES, "phys_pages" },
+#endif
+#ifdef _SC_AVPHYS_PAGES
+  {_SC_AVPHYS_PAGES, "avphys_pages" },
+#endif
+#ifdef _SC_NPROCESSORS_CONF
+  {_SC_NPROCESSORS_CONF, "nprocessors_conf" },
+#endif
+#ifdef _SC_NPROCESSORS_ONLN
+  {_SC_NPROCESSORS_ONLN, "nprocessors_onln" },
+#endif
+  {0, NULL}
+};
+
+static foreign_t
+pl_sysconf(term_t conf)
+{ atom_t name;
+  size_t arity;
+
+  if ( PL_get_name_arity(conf, &name, &arity) )
+  { const char *s = PL_atom_chars(name);
+    const struct conf *c = confs;
+
+    for(c=confs; c->name; c++)
+    { if ( strcmp(c->name, s) == 0 )
+      { term_t a;
+
+	return ( (a = PL_new_term_ref()) &&
+		 PL_get_arg(1, conf, a) &&
+		 PL_unify_integer(a, sysconf(c->code))
+	       );
+      }
+    }
+
+    return FALSE;
+  }
+  return PL_type_error("compound", conf);
+}
+#endif
+
+
 
 install_t
 install_unix(void)
@@ -412,6 +515,12 @@ install_unix(void)
   PL_register_foreign("dup",       2, pl_dup, 0);
   PL_register_foreign("detach_IO", 1, pl_detach_IO, 0);
   PL_register_foreign("environ",   1, pl_environ, 0);
+#ifdef HAVE_PRCTL
+  PL_register_foreign("prctl",     1, pl_prctl, 0);
+#endif
+#ifdef HAVE_SYSCONF
+  PL_register_foreign("sysconf",   1, pl_sysconf, 0);
+#endif
 }
 
 

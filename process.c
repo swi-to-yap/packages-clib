@@ -52,6 +52,14 @@
 #include <unistd.h>
 #endif
 
+#ifdef HAVE_PRCTL
+#include <sys/prctl.h>
+#endif
+
+#ifdef _REENTRANT
+#include <pthread.h>
+#endif
+
 static atom_t ATOM_stdin;
 static atom_t ATOM_stdout;
 static atom_t ATOM_stderr;
@@ -129,6 +137,7 @@ typedef struct p_stream
 #else
   int      fd[2];			/* pipe handles */
 #endif
+  int	   cloexec;			/* close on exec activated */
 } p_stream;
 
 
@@ -342,7 +351,7 @@ parse_options(term_t options, p_options *info)
 
   while(PL_get_list(tail, head, tail))
   { atom_t name;
-    int arity;
+    size_t arity;
 
     if ( !PL_get_name_arity(head, &name, &arity) || arity != 1 )
       return PL_type_error("option", head);
@@ -401,7 +410,7 @@ parse_options(term_t options, p_options *info)
 
 static int
 get_exe(term_t exe, p_options *info)
-{ int arity;
+{ size_t arity;
   term_t arg = PL_new_term_ref();
 
   if ( !PL_get_name_arity(exe, &info->exe_name, &arity) )
@@ -425,7 +434,7 @@ get_exe(term_t exe, p_options *info)
     return PL_resource_error("memory");
   strcpy(info->argv[0], info->exe);
 
-  { int i;
+  { size_t i;
 
     for(i=1; i<=arity; i++)
     { _PL_get_arg(i, exe, arg);
@@ -627,9 +636,29 @@ CRITICAL_SECTION process_lock;
 #define LOCK()   EnterCriticalSection(&process_lock);
 #define UNLOCK() LeaveCriticalSection(&process_lock);
 
+/* We need a root job to put non-detached processes into */
+static HANDLE rootJob = (HANDLE)0;
+
+static IOFUNCTIONS Sprocessfilefunctions = { 0, };
+
 static void
-win_init()
+win_init(void)
 { InitializeCriticalSection(&process_lock);
+  JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli;
+
+  rootJob = CreateJobObject(NULL, NULL);
+  if (rootJob == NULL) /* Already in a job */
+    return;
+
+  memset(&jeli, 0, sizeof(jeli));
+  jeli.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+  /* This will fail (silently) if we dont have permission to manage processes */
+  SetInformationJobObject(rootJob, JobObjectExtendedLimitInformation,
+			  &jeli, sizeof(jeli));
+
+  memcpy(&Sprocessfilefunctions, &Sfilefunctions, sizeof(IOFUNCTIONS));
+  Sprocessfilefunctions.seek = NULL;
+  Sprocessfilefunctions.seek64 = NULL;
 }
 
 
@@ -743,10 +772,10 @@ win_command_line(term_t t, int arity, const wchar_t *exe, wchar_t **cline)
   return TRUE;
 }
 
-
 typedef struct win_process
 { DWORD pid;
   HANDLE handle;
+  HANDLE job;
   struct win_process *next;
 } win_process;
 
@@ -754,11 +783,12 @@ typedef struct win_process
 static win_process *processes;
 
 static void
-register_process(DWORD pid, HANDLE h)
+register_process(DWORD pid, HANDLE h, HANDLE job)
 { win_process *wp = PL_malloc(sizeof(*wp));
 
   wp->pid = pid;
   wp->handle = h;
+  wp->job = job;
   LOCK();
   wp->next = processes;
   processes = wp;
@@ -793,6 +823,31 @@ find_process_from_pid(DWORD pid, const char *pred)
   for(wp=processes; wp; wp=wp->next)
   { if ( wp->pid == pid )
     { HANDLE h = wp->handle;
+      UNLOCK();
+      return h;
+    }
+  }
+
+  UNLOCK();
+
+  if ( pred )
+  { term_t ex = PL_new_term_ref();
+
+    if ( PL_put_integer(ex, pid) )
+      PL_existence_error("process", ex);
+  }
+
+  return (HANDLE)0;
+}
+
+static HANDLE
+find_job_from_pid(DWORD pid, const char *pred)
+{ win_process *wp;
+
+  LOCK();
+  for(wp=processes; wp; wp=wp->next)
+  { if ( wp->pid == pid )
+    { HANDLE h = wp->job;
       UNLOCK();
       return h;
     }
@@ -951,7 +1006,11 @@ create_pipes(p_options *info)
 
 static IOSTREAM *
 Sopen_handle(HANDLE h, const char *mode)
-{ return Sfdopen(_open_osfhandle((intptr_t)h, _O_BINARY), mode);
+{ IOSTREAM *s = Sfdopen(_open_osfhandle((intptr_t)h, _O_BINARY), mode);
+  if ( s->functions == &Sfilefunctions )
+  { s->functions = &Sprocessfilefunctions;
+  }
+  return s;
 }
 
 
@@ -1069,7 +1128,11 @@ do_create_process(p_options *info)
 		      &si,		/* Startup info */
 		      &pi) )		/* Process information */
   { int rc = TRUE;
-
+    HANDLE hJob = (HANDLE)0;
+    if ( !info->detached )
+    {
+      hJob = rootJob;
+    }
     CloseHandle(pi.hThread);
 
     if ( info->pipes > 0 && info->pid == 0 )
@@ -1089,7 +1152,7 @@ do_create_process(p_options *info)
 	if ( (s = open_process_pipe(pc, 0, info->streams[0].fd[1])) )
 	  rc = PL_unify_stream(info->streams[0].term, s);
 	else
-	  CloseHandle(info->streams[0].fd[0]);
+	  CloseHandle(info->streams[0].fd[1]);
       }
       if ( info->streams[1].type == std_pipe )
       { CloseHandle(info->streams[1].fd[1]);
@@ -1139,9 +1202,15 @@ do_create_process(p_options *info)
     { Sdprintf("FATAL ERROR: create_process/3\n");
       PL_halt(1);
     }
-
+    if ( info->detached )
+    { hJob = CreateJobObject(NULL, NULL);
+      AssignProcessToJobObject(hJob, pi.hProcess);
+    }
+    else
+    { AssignProcessToJobObject(rootJob, pi.hProcess);
+    }
     if ( info->pid )
-    { register_process(pi.dwProcessId, pi.hProcess);
+    { register_process(pi.dwProcessId, pi.hProcess, hJob);
       return PL_unify_integer(info->pid, pi.dwProcessId);
     }
 
@@ -1152,6 +1221,67 @@ do_create_process(p_options *info)
 }
 
 #else /*__WINDOWS__*/
+
+#ifndef HAVE_PRCTL
+#ifdef _REENTRANT
+static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+#define LOCK()   pthread_mutex_lock(&mutex)
+#define UNLOCK() pthread_mutex_unlock(&mutex)
+#else
+#define LOCK() {}
+#define UNLOCK() {}
+#endif
+
+typedef struct posix_process
+{ pid_t pid;
+  struct posix_process *next;
+} posix_process;
+
+static posix_process *processes = NULL;
+
+static void
+register_process(pid_t pid)
+{ posix_process *pp = PL_malloc(sizeof(*pp));
+
+  pp->pid = pid;
+  LOCK();
+  pp->next = processes;
+  processes = pp;
+  UNLOCK();
+}
+
+static int
+unregister_process(pid_t pid)
+{ posix_process **ppp, *pp;
+  LOCK();
+  for(ppp=&processes, pp=*ppp; pp; ppp=&pp->next, pp=*ppp)
+  { if ( pp->pid == pid )
+    { *ppp = pp->next;
+      PL_free(pp);
+      UNLOCK();
+      return TRUE;
+    }
+  }
+
+  UNLOCK();
+  return FALSE;
+}
+
+static int
+kill_all_processes(int rc, void* arg)
+{ posix_process* pp;
+  for(pp=processes; pp; pp=pp->next)
+    kill(pp->pid, SIGTERM);
+  return 0;
+}
+
+static void
+posix_init()
+{ PL_exit_hook(kill_all_processes, NULL);
+}
+
+#endif
+
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Note the descriptors created using pipe()   are  inherited by the child.
@@ -1165,6 +1295,10 @@ before the exec, so the descriptors are still valid).
 This can be implemented safely on systems   that  have pipe2(). On other
 systems, safety can be enhanced by   reducing  the window using fcntl(),
 but this needs to be synced with fork() in other threads.
+
+(*) It seems that some systems implement  the function, but the function
+returns ENOSYS to indicate it is not   implemented. Hence, we need to go
+for a runtime solution.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 static int
@@ -1180,26 +1314,28 @@ create_pipes(p_options *info)
       { s->fd[0] = info->streams[1].fd[0];
 	s->fd[1] = info->streams[1].fd[1];
       } else
-      {
+      { int my_side;
+
 #ifdef HAVE_PIPE2
-	if ( pipe2(s->fd, O_CLOEXEC) )
-	{ assert(errno = EMFILE);
+	if ( pipe2(s->fd, O_CLOEXEC) == 0 )
+	{ s->cloexec = TRUE;
+	  continue;
+	} else if ( errno != ENOSYS )	/* See (*) */
+	{ if ( errno != EMFILE )
+	    Sdprintf("pipe2(): unexpected error: %s\n", strerror(errno));
 	  return PL_resource_error("open_files");
 	}
-#define PIPE_CLOSED_ON_EXEC 1
-#else
-	int my_side;
-
+#endif
 	if ( pipe(s->fd) )
-	{ assert(errno = EMFILE);
+	{ if ( errno != EMFILE )
+	    Sdprintf("pipe(): unexpected error: %s\n", strerror(errno));
 	  return PL_resource_error("open_files");
 	}
 	my_side = (i == 0 ? s->fd[1] : s->fd[0]);
 #ifdef F_SETFD
-        fcntl(my_side, F_SETFD, FD_CLOEXEC);
-#define PIPE_CLOSED_ON_EXEC 1
+        if ( fcntl(my_side, F_SETFD, FD_CLOEXEC) == 0 )
+	  s->cloexec = TRUE;
 #endif
-#endif /*HAVE_PIPE2*/
       }
     }
   }
@@ -1232,7 +1368,12 @@ wait_for_pid(pid_t pid, term_t code, wait_options *opts)
 
   if ( opts->has_timeout && opts->timeout == 0.0 )
   { if ( (p2=waitpid(pid, &status, WNOHANG)) == pid )
+    {
+#ifndef HAVE_PRCTL
+      unregister_process(pid);
+#endif
       return unify_exit_status(code, status);
+    }
     else if ( p2 == 0 )
       return PL_unify_atom(code, ATOM_timeout);
     else
@@ -1269,7 +1410,11 @@ wait_success(atom_t name, pid_t pid)
 
     if ( (p2=waitpid(pid, &status, 0)) == pid )
     { if ( WIFEXITED(status) && WEXITSTATUS(status) == 0 )
-      { return TRUE;
+      {
+#ifndef HAVE_PRCTL
+        unregister_process(pid);
+#endif
+        return TRUE;
       } else
       { term_t code, ex;
 
@@ -1328,7 +1473,6 @@ close_ok(int fd)
 static int
 do_create_process(p_options *info)
 { int pid;
-
   if ( !(pid=vfork()) )			/* child */
   { int fd;
 
@@ -1340,7 +1484,23 @@ do_create_process(p_options *info)
 #endif
 
     if ( info->detached )
-      setsid();
+    { setsid();
+#ifdef HAVE_SETPGID
+    setpgid(pid, pid);
+#elif defined(HAVE_SETPGRP)
+#ifdef SETPGRP_VOID
+    setpgrp();
+#else
+    setpgrp(pid, pid);
+#endif
+#endif
+    }
+    else
+    {
+#ifdef HAVE_PRCTL
+    prctl(PR_SET_PDEATHSIG, SIGTERM);
+#endif
+    }
 
     if ( info->cwd )
     { if ( chdir(info->cwd) )
@@ -1353,9 +1513,8 @@ do_create_process(p_options *info)
     switch( info->streams[0].type )
     { case std_pipe:
 	dup2(info->streams[0].fd[0], 0);
-#ifndef PIPE_CLOSED_ON_EXEC
-	close(info->streams[0].fd[1]);
-#endif
+        if ( !info->streams[0].cloexec )
+	  close(info->streams[0].fd[1]);
 	break;
       case std_null:
 	if ( (fd = open("/dev/null", O_RDONLY)) >= 0 )
@@ -1368,9 +1527,8 @@ do_create_process(p_options *info)
     switch( info->streams[1].type )
     { case std_pipe:
 	dup2(info->streams[1].fd[1], 1);
-#ifndef PIPE_CLOSED_ON_EXEC
-        close(info->streams[1].fd[0]);
-#endif
+        if ( !info->streams[1].cloexec )
+	  close(info->streams[1].fd[0]);
 	break;
       case std_null:
 	if ( (fd = open("/dev/null", O_WRONLY)) >= 0 )
@@ -1383,9 +1541,8 @@ do_create_process(p_options *info)
     switch( info->streams[2].type )
     { case std_pipe:
 	dup2(info->streams[2].fd[1], 2);
-#ifndef PIPE_CLOSED_ON_EXEC
-        close(info->streams[2].fd[0]);
-#endif
+	if ( !info->streams[2].cloexec )
+	  close(info->streams[2].fd[0]);
 	break;
       case std_null:
 	if ( (fd = open("/dev/null", O_WRONLY)) >= 0 )
@@ -1413,7 +1570,6 @@ do_create_process(p_options *info)
     if ( info->pipes > 0 && info->pid == 0 )
     { IOSTREAM *s;			/* no pid(Pid): wait */
       process_context *pc = PL_malloc(sizeof(*pc));
-
       DEBUG(Sdprintf("Wait on pipes\n"));
 
       memset(pc, 0, sizeof(*pc));
@@ -1474,7 +1630,10 @@ do_create_process(p_options *info)
     }
 
     assert(rc);				/* What else? */
-
+#ifndef HAVE_PRCTL /* Then we must do this manually */
+    if ( !info->detached )
+      register_process(pid);
+#endif
     if ( info->pid )
       return PL_unify_integer(info->pid, pid);
 
@@ -1585,7 +1744,7 @@ process_wait(term_t pid, term_t code, term_t options)
   memset(&opts, 0, sizeof(opts));
   while(PL_get_list(tail, head, tail))
   { atom_t name;
-    int arity;
+    size_t arity;
 
     if ( !PL_get_name_arity(head, &name, &arity) || arity != 1 )
       return PL_type_error("option", head);
@@ -1612,6 +1771,25 @@ process_wait(term_t pid, term_t code, term_t options)
   return wait_for_pid(p, code, &opts);
 }
 
+#ifndef __WINDOWS__
+static foreign_t
+process_kill_posix(term_t pid_term, pid_t pid, int sig)
+{ if ( kill(pid, sig) == 0 )
+    return TRUE;
+
+  switch(errno)
+  { case EPERM:
+      return pl_error("process_kill", 2, NULL, ERR_PERMISSION,
+		      pid_term, "kill", "process");
+    case ESRCH:
+      return pl_error("process_kill", 2, NULL, ERR_EXISTENCE,
+		      "process", pid_term);
+    default:
+      return pl_error("process_kill", 2, "kill", ERR_ERRNO, errno,
+		      "kill", "process", pid_term);
+  }
+}
+#endif
 
 static foreign_t
 process_kill(term_t pid, term_t signal)
@@ -1637,22 +1815,39 @@ process_kill(term_t pid, term_t signal)
   if ( !PL_get_signum_ex(signal, &sig) )
     return FALSE;
 
-  if ( kill(p, sig) == 0 )
-    return TRUE;
-
-  switch(errno)
-  { case EPERM:
-      return pl_error("process_kill", 2, NULL, ERR_PERMISSION,
-		      pid, "kill", "process");
-    case ESRCH:
-      return pl_error("process_kill", 2, NULL, ERR_EXISTENCE,
-		      "process", pid);
-    default:
-      return pl_error("process_kill", 2, "kill", ERR_ERRNO, errno, "kill", "process", pid);
-  }
+  return process_kill_posix(pid, p, sig);
 #endif /*__WINDOWS__*/
 }
 }
+
+static foreign_t
+process_group_kill(term_t pid, term_t signal)
+{ pid_t p;
+
+  if ( !get_pid(pid, &p) )
+    return FALSE;
+
+{
+#ifdef __WINDOWS__
+  HANDLE hJob;
+  hJob = find_job_from_pid(p, "process_group_kill");
+  TerminateJobObject(hJob, 255);
+  /* For consistency, if you try to kill the process group of the
+     root process then exit. Windows does not do this for us.
+  */
+  if (hJob == rootJob)
+    exit(255);
+  return TRUE;
+#else /*__WINDOWS__*/
+   int sig;
+   if ( !PL_get_signum_ex(signal, &sig) )
+     return FALSE;
+   return process_kill_posix(pid, -p, sig);
+#endif /*__WINDOWS__*/
+ }
+}
+
+
 
 
 #define MKATOM(n) ATOM_ ## n = PL_new_atom(#n)
@@ -1663,6 +1858,8 @@ install_process(void)
 {
 #ifdef __WINDOWS__
   win_init();
+#elif !defined(HAVE_PRCTL)
+  posix_init();
 #endif
 
   MKATOM(stdin);
@@ -1692,4 +1889,5 @@ install_process(void)
   PL_register_foreign("process_create", 2, process_create, 0);
   PL_register_foreign("process_wait", 3, process_wait, 0);
   PL_register_foreign("process_kill", 2, process_kill, 0);
+  PL_register_foreign("process_group_kill", 2, process_group_kill, 0);
 }

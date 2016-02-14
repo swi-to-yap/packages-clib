@@ -1,11 +1,10 @@
-/*  $Id$
-
-    Part of SWI-Prolog
+/*  Part of SWI-Prolog
 
     Author:        Jan Wielemaker
-    E-mail:        J.Wielemaker@cs.vu.nl
+    E-mail:        J.Wielemaker@vu.nl
     WWW:           http://www.swi-prolog.org
-    Copyright (C): 1985-2009, University of Amsterdam
+    Copyright (C): 1985-2014, University of Amsterdam
+			      VU University Amsterdam
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
@@ -52,16 +51,26 @@
 	alarm_at(+, 0, -, +),
 	current_alarm(?, :, ?, ?).
 
+<<<<<<< HEAD
 /** <module> SWI-style timer/alarms
     @ingroup SWIclib
+=======
+:- predicate_options(alarm/4, 4,
+		     [ remove(boolean),
+		       install(boolean)
+		     ]).
+
+
+/** <module> Time and alarm library
+>>>>>>> 47df40fe09ec8bb62b42e9e840a257e7315e3bff
 */
 
 %%	alarm(+Time, :Callable, -Id) is det.
 %%	alarm(+Time, :Callable, -Id, +Options) is det.
 %
-%	Set up an alarm to be signaled Time seconds from now. If the
-%	alarm expires, Callable is called asynchronously. Callable can
-%	be used to raise an exception using throw/1 to abort some
+%	Set up an alarm to be  signaled   Time  seconds from now. If the
+%	alarm expires, Callable is called   asynchronously. Callable can
+%	be used to raise  an  exception   using  throw/1  to  abort some
 %	execution.
 %
 %	Options is a list of Name(Value) options.  Currently defined
@@ -83,12 +92,20 @@
 %	@see date_time_stamp/2.
 
 %%	install_alarm(+Id) is det.
+%%	install_alarm(+Id, +RelTime) is det.
 %
 %	Install an alarm allocated using alarm/4 with the install(false)
-%	option.
+%	option or de-activated using  uninstall_alarm/1.   With  a given
+%	RelTime, the alarm  is  scheduled  at   the  RelTime  from  now.
+%	Otherwise it is scheduled on the   same (absolute) time on which
+%	is was created.
+
+%%	uninstall_alarm(+Id) is det.
 %
-%	@deprecated	With the introduction of setup_call_cleanup/3,
-%			this predicate is probably no longer needed.
+%	De-activate an alarm. This does _not_ invalidate Id, but ensures
+%	that the alarm will not fire. The alarm can be rescheduled to
+%	the original time using install_alarm/1 or to a new time using
+%	install_alarm/2.
 
 %%	remove_alarm(+Id) is det.
 %
@@ -97,10 +114,10 @@
 %%	current_alarm(?Time, :Goal, ?Id, ?Status) is nondet.
 %
 %	Enumerate the alarms in the schedule.  Time is the absolute time
-%	the event is scheduled for (see also get_time/1). Goal is the
-%	goal to execute, Id is the identifier and Status is the
-%	scheduling status. It takes the value =done= if the alarm has
-%	been fired, =next= if the event is the next to be executed and
+%	the event is scheduled for (see   also  get_time/1). Goal is the
+%	goal to execute,  Id  is  the   identifier  and  Status  is  the
+%	scheduling status. It takes the value   =done=  if the alarm has
+%	been fired, =next= if the event is   the next to be executed and
 %	=scheduled= otherwise.
 
 :- use_foreign_library(foreign(time)).
@@ -144,3 +161,10 @@ current_alarm(Time, Goal, Id, Status) :-
 prolog:message(time_limit_exceeded) -->
 	[ 'Time limit exceeded' ].
 
+		 /*******************************
+		 *	       ALARM		*
+		 *******************************/
+
+:- multifile sandbox:safe_meta_predicate/1.
+
+sandbox:safe_meta_predicate(time:call_with_time_limit/2).
